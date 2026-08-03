@@ -1,4 +1,4 @@
-# 🤖 M2M Agentic Protocol: Jules x Antigravity 雙 AI 自主對接執行協議書 (v2.2 完整生產版)
+# 🤖 M2M Agentic Protocol: Jules x Antigravity 雙 AI 自主對接執行協議書 (v2.3 完整生產版)
 ### *(Machine-to-Machine Autonomous Handshake Protocol with Robust State Machine, Human Gateways & Accountability)*
 
 > **使用說明**：本協議針對 v2.1 的審查意見進行最終補強，解決了核准權限分級、並發鎖定恢復路徑、Schema 欄位一致性、人類閘門逾時升級、稽核軌跡核准者身分記錄，以及依賴變更風險分級等生產環境收尾問題。
@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 |---|---|
-| **協議版本** | M2M v2.2 (完整生產版) |
+| **協議版本** | M2M v2.3 (完整生產版) |
 | **通訊模式** | 結構化標籤 (GitHub Labels / YAML Front-matter) 驅動的閉環狀態機 |
 | **安全基底** | 分級人類核准閘門、供應鏈與憑證掃描、並發鎖定與恢復、逾時升級、完整可追責稽核軌跡 |
 
@@ -56,7 +56,7 @@
 Jules 產出的實作藍圖必須採用以下 YAML 格式。若 `m2m_protocol_version` 與系統支援版本不匹配，CI 將直接拒絕解析並報錯：
 
 ```yaml
-m2m_protocol_version: "2.2"
+m2m_protocol_version: "2.3"
 task_id: "ISSUE-104"
 target_branch: "feature/issue-104"
 contains_db_migration: false        # 影響自動回滾策略
