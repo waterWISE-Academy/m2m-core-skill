@@ -1,0 +1,61 @@
+stateDiagram-v2
+    [*] --> PLAN_READY: Jules 產出計畫書
+
+    PLAN_READY --> FATAL_ERROR: 逾時 4hr 無回應
+    PLAN_READY --> CONFLICT_LOCKED: allowed_file_paths 與其他 Task 重疊
+
+    CONFLICT_LOCKED --> PLAN_READY: 佔用鎖定的 Task 結束，排隊釋放
+    CONFLICT_LOCKED --> FATAL_ERROR: 排隊逾時 8hr
+
+    PLAN_READY --> IMPLEMENTED: Antigravity 完成實作並提交 PR
+
+    IMPLEMENTED --> FATAL_ERROR: 逾時 2hr 無回應
+    IMPLEMENTED --> REJECTED: CI 檢查失敗\n(白名單越界 / Secret Scan / 測試失敗)
+    IMPLEMENTED --> AWAITING_HUMAN_APPROVAL: 命中人類閘門條件\n(migration / 憑證 / 高風險依賴 / 上線前10次)
+    IMPLEMENTED --> MERGED: 無需人類閘門且審查通過
+
+    REJECTED --> PLAN_READY: rejection_count < 3\n且 Jules 更新計畫書(reset_count < 2)
+    REJECTED --> IMPLEMENTED: rejection_count < 3\nAntigravity 依錯誤日誌局部修正
+    REJECTED --> FATAL_ERROR: 累積滿 3 次 REJECTED\n或 reset_count 超過 2 次
+
+    AWAITING_HUMAN_APPROVAL --> APPROVED: 授權核准者 /approve
+    AWAITING_HUMAN_APPROVAL --> CHANGES_REQUESTED: 授權核准者 /reject [原因]
+    AWAITING_HUMAN_APPROVAL --> TASK_CLOSED: 人類直接關閉 PR
+    AWAITING_HUMAN_APPROVAL --> AWAITING_HUMAN_APPROVAL: 24hr 無回應 → 升級通知(@Tech Lead)
+    AWAITING_HUMAN_APPROVAL --> STALE_APPROVAL: 72hr 仍無回應
+
+    APPROVED --> MERGED: 自動恢復管線，執行合併
+    CHANGES_REQUESTED --> IMPLEMENTED: Antigravity 依核准者意見重寫
+
+    MERGED --> POST_MERGE_OK: 主分支 CI 通過
+    MERGED --> POST_MERGE_FAILURE: 主分支 CI 失敗
+
+    POST_MERGE_FAILURE --> CRITICAL_MIGRATION_FAILURE: contains_db_migration = true\n(禁止自動revert，強制人類介入)
+    POST_MERGE_FAILURE --> AUTO_REVERTED: contains_db_migration = false\n(自動 git revert + 建立 critical-bug Issue)
+
+    AUTO_REVERTED --> PLAN_READY: Jules 重新分析後產出新計畫
+
+    FATAL_ERROR --> TASK_CLOSED: 人類介入處理後手動結案
+    CRITICAL_MIGRATION_FAILURE --> TASK_CLOSED: 人類手動修復後結案
+    STALE_APPROVAL --> TASK_CLOSED: 人工排程重啟或結案
+
+    POST_MERGE_OK --> [*]
+    TASK_CLOSED --> [*]
+
+    note right of AWAITING_HUMAN_APPROVAL
+        分級核准權限 (§4.3)：
+        一般 → 任一 maintainer
+        高風險 → 對應目錄負責人(非提交者)
+        關鍵 → Tech Lead(非提交者)
+    end note
+
+    note right of REJECTED
+        rejection_count 綁定 PR ID
+        reset_count 上限 2 次
+        超過即強制 FATAL_ERROR
+    end note
+
+    note right of CRITICAL_MIGRATION_FAILURE
+        絕對禁止自動 revert
+        立即發送 Slack/Email 通知
+    end note
