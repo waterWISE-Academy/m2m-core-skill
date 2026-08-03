@@ -14,30 +14,36 @@ stateDiagram-v2
     IMPLEMENTED --> AWAITING_HUMAN_APPROVAL: 命中人類閘門條件\n(migration / 憑證 / 高風險依賴 / 上線前10次)
     IMPLEMENTED --> MERGED: 無需人類閘門且審查通過
 
-    REJECTED --> PLAN_READY: rejection_count < 3\n且 Jules 更新計畫書(reset_count < 2)
-    REJECTED --> IMPLEMENTED: rejection_count < 3\nAntigravity 依錯誤日誌局部修正
+    REJECTED --> PLAN_READY: Jules 判斷需重新規劃\n(套件選型錯誤/技術路線不可行)
+    REJECTED --> IMPLEMENTED: Jules 判斷僅需局部修正\n(單純邏輯瑕疵/測試未過)
     REJECTED --> FATAL_ERROR: 累積滿 3 次 REJECTED\n或 reset_count 超過 2 次
 
     AWAITING_HUMAN_APPROVAL --> APPROVED: 授權核准者 /approve
     AWAITING_HUMAN_APPROVAL --> CHANGES_REQUESTED: 授權核准者 /reject [原因]
     AWAITING_HUMAN_APPROVAL --> TASK_CLOSED: 人類直接關閉 PR
     AWAITING_HUMAN_APPROVAL --> AWAITING_HUMAN_APPROVAL: 24hr 無回應 → 升級通知(@Tech Lead)
-    AWAITING_HUMAN_APPROVAL --> STALE_APPROVAL: 72hr 仍無回應
+    AWAITING_HUMAN_APPROVAL --> STALE_APPROVAL: 累計 96hr 仍無回應 (首次提醒 +72hr)
 
     APPROVED --> MERGED: 自動恢復管線，執行合併
-    CHANGES_REQUESTED --> IMPLEMENTED: Antigravity 依核准者意見重寫
+    CHANGES_REQUESTED --> IMPLEMENTED: 退回 AI 團隊重新評估
 
     MERGED --> POST_MERGE_OK: 主分支 CI 通過
     MERGED --> POST_MERGE_FAILURE: 主分支 CI 失敗
 
     POST_MERGE_FAILURE --> CRITICAL_MIGRATION_FAILURE: contains_db_migration = true\n(禁止自動revert，強制人類介入)
     POST_MERGE_FAILURE --> AUTO_REVERTED: contains_db_migration = false\n(自動 git revert + 建立 critical-bug Issue)
+    POST_MERGE_FAILURE --> REVERT_FAILED: git revert 發生衝突失敗
+
+    REVERT_FAILED --> FATAL_ERROR: 停止自動修復，手動介入
 
     AUTO_REVERTED --> PLAN_READY: Jules 重新分析後產出新計畫
 
     FATAL_ERROR --> TASK_CLOSED: 人類介入處理後手動結案
     CRITICAL_MIGRATION_FAILURE --> TASK_CLOSED: 人類手動修復後結案
     STALE_APPROVAL --> TASK_CLOSED: 人工排程重啟或結案
+    STALE_APPROVAL --> ABANDONED: 持續閒置達 7 天，廢棄釋放資源
+
+    ABANDONED --> [*]
 
     POST_MERGE_OK --> [*]
     TASK_CLOSED --> [*]

@@ -70,9 +70,10 @@ Jules 產出的實作藍圖必須採用以下 YAML 格式。若 `m2m_protocol_ve
 ```yaml
 m2m_protocol_version: "2.3"
 task_id: "ISSUE-104"
+associated_ac_ids: ["AC-1", "AC-2"] # 必須追溯至開發計畫書的驗收標準
 target_branch: "feature/issue-104"
 contains_db_migration: false        # 影響自動回滾策略
-dependency_change_risk: "none"      # none | patch_bump | new_dependency（見 4.2）
+dependency_change_risk: "none"      # none | patch_bump | major_bump | new_dependency（見 5.2）
 allowed_file_paths:
   - "src/components/Button.tsx"
   - "tests/Button.test.tsx"
@@ -82,10 +83,8 @@ data_contracts:
 edge_cases_to_test:
   - "Empty string label handling"
 
-# 以下欄位僅在 rejection_count 歸零重置時填寫
-reset_history:
-  - reset_at: null        # ISO 8601 時間戳，由系統自動填入
-    reset_reason: null    # 必填：Jules 說明為何需求變更導致重新規劃
+# 初始化時應為空陣列。僅在 rejection_count 歸零重置時，系統才會 append 新紀錄
+reset_history: []
 ```
 
 ---
@@ -102,6 +101,7 @@ reset_history:
 *   **強制憑證掃描 (Secret Scanning)**：CI 內建 `gitleaks` 或 `truffleHog` 掃描器。不論檔案路徑為何，只要偵測到疑似 API Key、密碼或憑證字串，一律強制攔截進人類閘門。
 *   **依賴變更風險分級 (Dependency Risk Tiering)**：為避免所有依賴變更都無差別進入人類閘門造成「閘門疲勞」，依變更性質分級處理，由 CI 自動判讀並回填 `dependency_change_risk`：
     *   `patch_bump`：既有依賴的 patch/minor 版本號更新，且無新增套件 → 僅記錄於稽核軌跡，**不**強制進人類閘門。
+    *   `major_bump`：既有依賴的大版號 (Major Version) 更新 → 強制進人類閘門，視為高破壞性風險。
     *   `new_dependency`：新增任何未曾出現於 lockfile 的套件 → 強制進人類閘門，視為供應鏈風險。
     *   `none`：無依賴檔案變更。
 
@@ -112,24 +112,31 @@ reset_history:
 | 風險等級 | 觸發條件 | 核准權限要求 |
 |---|---|---|
 | **一般 (Standard)** | 專案上線前 10 次合併期間的一般性變更 | 任一 `CODEOWNERS` 名單中的 maintainer 即可核准 |
-| **高風險 (Elevated)** | 命中 `.env`、`config/`、CI/CD 腳本（`.github/workflows/`）、`new_dependency` | 須為 `CODEOWNERS` 名單中對應目錄的指定負責人，且不得為該 PR 的提交者本人 |
+| **高風險 (Elevated)** | 命中 `.env`、`config/`、CI/CD 腳本（`.github/workflows/`）、`new_dependency` 或 `major_bump` | 須為 `CODEOWNERS` 名單中對應目錄的指定負責人，且不得為該 PR 的提交者本人 |
 | **關鍵 (Critical)** | CI 偵測到疑似洩漏憑證、或 `contains_db_migration: true` | 須經 `CODEOWNERS` 中至少一名 Tech Lead 層級核准，且不得為提交者本人 |
+
+*   **單人維護條款 (Solo-Maintainer Clause)**：若專案為單一擁有者（如個人專案），允許繞過 Elevated 與 Critical 層級「不得為提交者本人」的限制。**但強制要求**人類在放行前，必須於開發計畫書中的「例外狀況決策」區塊留下明確的商業授權文字紀錄，以落實「老闆必須知情風險並親自授權」的原則。
 
 *   **人類閘門回傳路由**：
     *   **核准**：核准者在 PR 介面點擊 `Approve` 審查或留言 `/approve`。系統驗證留言者是否具備該風險等級所需權限，通過後標記 `[STATUS: APPROVED]`，自動恢復管線進入合併程序；若權限不足，系統拒絕該次核准並在稽核軌跡記錄無效嘗試。
-    *   **拒絕**：核准者點擊 `Request Changes` 或留言 `/reject [原因]`，系統標記 `[STATUS: CHANGES_REQUESTED]`，帶入原因退回 Antigravity 重寫。
+    *   **拒絕 (人類決策)**：核准者點擊 `Request Changes` 或留言 `/reject [原因]`，系統標記 `[STATUS: CHANGES_REQUESTED]`，帶入原因退回 AI 團隊重新評估。
     *   **關閉**：人類直接關閉 PR，任務終止。
-*   **逾時升級 (Escalation Timeout)**：若 `AWAITING_HUMAN_APPROVAL` 狀態持續超過 **24 小時** 無任何核准/拒絕動作，系統自動 @ 提及對應風險等級的核准者群組（一般 → 專案 maintainer 頻道；高風險/關鍵 → 直接通知 Tech Lead）發送升級提醒。若再持續 **72 小時** 無回應，標記 `stale-approval` 並將任務暫緩，等待人工排程。
+*   **逾時升級 (Escalation Timeout)**：若 `AWAITING_HUMAN_APPROVAL` 狀態持續超過 **24 小時** 無任何核准/拒絕動作，系統自動 @ 提及對應風險等級的核准者群組發送升級提醒。若**累積等待時間達 96 小時**（首次提醒後再過 72hr），標記為 `STALE_APPROVAL` 並暫緩排程。若持續閒置達 **7 天**，自動標記為 `ABANDONED` 廢棄任務，釋放資源。
+
+### 5.4 AI 內部仲裁與 REJECTED 路由 (Auto-Negotiation & Rejection)
+Jules 對 Antigravity 的產出擁有最終審查權。當 Jules 退回產出 (REJECTED) 時，必須依據以下原則決定返回路徑：
+*   **局部修正 (REJECTED -> IMPLEMENTED)**：若錯誤為單純的程式碼邏輯瑕疵、測試未過或安全漏洞，由 Antigravity 針對當前 PR 直接修正。
+*   **重新規劃 (REJECTED -> PLAN_READY)**：若 Jules 發現當前的技術路線、套件選型不可行，或違反了原先的架構設定，必須歸零重啟，並在 `reset_history` 中寫入原因。
 
 ---
 
 ## 六、 異常處理、自動回滾與稽核軌跡
 
 ### 6.1 失敗降級與智慧回滾 (Smart Rollback)
-*   **連續三次拒絕**：累積滿 3 次 `REJECTED`，鎖定為 `[STATUS: FATAL_ERROR]`。
+*   **連續三次拒絕**：累積滿 3 次 `REJECTED`，鎖定為 `[STATUS: FATAL_ERROR]`，代表 AI 發生 Deadlock。
 *   **合併後崩潰與 Migration 排除**：若 Main 分支合併後 CI 失敗：
-    *   **條件 A (含 Migration)**：若 YAML 中 `contains_db_migration: true`，**絕對禁止自動 revert**，系統立即發送即時通知（Slack/Email）並標記 `critical-migration-failure`，強制交由人類工程師手動介入處理。
-    *   **條件 B (純程式碼)**：自動觸發 `git revert` 退回上一版，發送通知，並建立標記為 `critical-bug` 的 Issue 交由 Jules 重新分析。
+    *   **條件 A (含 Migration)**：若 YAML 中 `contains_db_migration: true`，**絕對禁止自動 revert**，系統立即發送即時通知（Slack/Email）並標記 `critical-migration-failure`，強制交由人類手動介入處理。
+    *   **條件 B (純程式碼)**：自動觸發 `git revert` 退回上一版，發送通知，並建立標記為 `critical-bug` 的 Issue 交由 Jules 重新分析。**若 `git revert` 本身發生衝突失敗**，則標記該 Issue 為 `critical-bug-manual-intervention` 並升級通知人類，停止自動化修復。
 
 ### 6.2 稽核軌跡 (Audit Trail)
 所有事件自動封存於 `docs/audit_trails/{task_id}.log`，須包含但不限於：
