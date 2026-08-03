@@ -7,8 +7,7 @@
 #
 # 使用方式：
 #   - GitHub 會自動辨識放在 repo 根目錄、docs/、或 .github/ 下的 CODEOWNERS
-#   - 下方以三個區塊對應協議的三個風險等級（一般 / 高風險 / 關鍵）
-#   - 請將 @your-org/xxx 替換為實際的 GitHub team 或帳號
+#   - 下方已將所有預設佔位符替換為您真實的 GitHub 帳號：@Jaylanbee
 #
 # 重要限制（依協議 4.3）：
 #   - 「高風險」與「關鍵」等級的核准者，不得為該 PR 的提交者本人，
@@ -21,7 +20,7 @@
 # 觸發條件：專案上線前 10 次合併期間的一般性變更
 # 核准權限：任一 maintainer 即可核准
 # -----------------------------------------------------------------------------
-*                                       @your-org/maintainers
+*                                       @Jaylanbee
 
 
 # -----------------------------------------------------------------------------
@@ -29,14 +28,14 @@
 # 觸發條件：命中 .env、config/、CI/CD 腳本、或新增依賴套件 (new_dependency)
 # 核准權限：對應目錄的指定負責人（且不得為 PR 提交者本人，由 CI 額外檢查）
 # -----------------------------------------------------------------------------
-/.env*                                 @your-org/platform-leads
-/config/                               @your-org/platform-leads
-/.github/workflows/                    @your-org/platform-leads @your-org/security-team
-package.json                           @your-org/dependency-approvers
-package-lock.json                      @your-org/dependency-approvers
-pnpm-lock.yaml                         @your-org/dependency-approvers
-requirements.txt                       @your-org/dependency-approvers
-poetry.lock                            @your-org/dependency-approvers
+/.env*                                 @Jaylanbee
+/config/                               @Jaylanbee
+/.github/workflows/                    @Jaylanbee
+package.json                           @Jaylanbee
+package-lock.json                      @Jaylanbee
+pnpm-lock.yaml                         @Jaylanbee
+requirements.txt                       @Jaylanbee
+poetry.lock                            @Jaylanbee
 
 
 # -----------------------------------------------------------------------------
@@ -44,22 +43,14 @@ poetry.lock                            @your-org/dependency-approvers
 # 觸發條件：CI 偵測到疑似洩漏憑證，或 contains_db_migration: true
 # 核准權限：CODEOWNERS 中至少一名 Tech Lead 層級核准（且不得為提交者本人）
 # -----------------------------------------------------------------------------
-/db/migrations/                        @your-org/tech-leads
-/prisma/migrations/                    @your-org/tech-leads
-/supabase/migrations/                  @your-org/tech-leads
+/db/migrations/                        @Jaylanbee
+/prisma/migrations/                    @Jaylanbee
+/supabase/migrations/                  @Jaylanbee
 
 
 # -----------------------------------------------------------------------------
 # 【M2M 協議自身治理】
 # 本協議文件與工作流程骨架的變更，本身也應視為高風險變更
 # -----------------------------------------------------------------------------
-/docs/M2M_Agentic_Protocol*.md          @your-org/platform-leads @your-org/tech-leads
-/.github/workflows/m2m-protocol.yml     @your-org/platform-leads @your-org/tech-leads
-
-
-# -----------------------------------------------------------------------------
-# 維護提醒（非 GitHub 語法，僅供團隊參考）：
-#   - 本檔案應至少每季審查一次，確保團隊名單與實際人員異動同步
-#   - 新增高風險/關鍵目錄時，務必同步更新此檔案，否則協議的核准權限
-#     驗證邏輯將找不到對應負責人，導致人類閘門卡死
-# -----------------------------------------------------------------------------
+/docs/M2M_Agentic_Protocol*.md          @Jaylanbee
+/.github/workflows/m2m-protocol.yml     @Jaylanbee
