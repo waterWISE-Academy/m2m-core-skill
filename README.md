@@ -1,7 +1,9 @@
 # M2M Core Skill: Jules x Antigravity 雙 AI 自主對接中央技能庫 (v2.3)
 
 本專案為多代理協作（Multi-Agent System）中央技能庫，**定義並規劃了** M2M Agentic Protocol v2.3 協議規格。提供嚴謹的閉環狀態機、並發鎖定、分級人類安全閘門、資安防護與可追責稽核軌跡。
-*(註：本專案目前的 CI/CD 引擎仍處於架構規劃階段，尚未具備可執行的 GitHub Actions 程式碼。各項安全防護皆為規格定義。)*
+
+> ⚠️ **安全警告 (Security Warning)**：
+> 目前的 `.github/workflows/m2m-protocol.yml` 雖具備完整的 Job 架構且能順利掛載，但其內部檢核邏輯為**「全綠燈橡皮圖章 (Rubber Stamp)」**。它不會執行任何實質的白名單或 Secret 攔截。在核心引擎程式碼實作完成前，**切勿將其用於正式生產環境的安全防護**。
 
 ## 📋 系統架構與核心角色
 本協議明確定義了雙 AI 與人類的協作分工：
@@ -41,10 +43,8 @@
 * `.github/workflows/m2m-protocol.yml`：CI/CD 驗證與閘門控制引擎 (Reusable Workflow)。
 * `.github/CODEOWNERS`：分級權限與責任歸屬清單。
 
-## 🚀 未來整合規劃 (Future Integration)
-*警告：目前的 `.github/workflows/m2m-protocol.yml` 為規格佔位符。在核心引擎程式碼實作完成前，請勿在生產環境中 `uses:` 掛載此 workflow，否則會因無法解析 job 而導致 CI 直接報錯阻擋。*
-
-待引擎實作完成後，業務專案的掛載方式將如下所示：
+## 🚀 整合與掛載 (Integration)
+待未來核心引擎實作完成後，業務專案的掛載方式將如下所示：
 ```yaml
 # 示意代碼，目前尚未生效
 jobs:

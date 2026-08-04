@@ -107,7 +107,8 @@ reset_history: []
 
 ### 5.2 檔案越界防護與 Secret Scanning
 *   **檔案白名單比對**：CI 自動比對 `git diff --name-only` 與 `allowed_file_paths`，越界即拒絕。
-*   **強制憑證掃描 (Secret Scanning)**：CI 內建 `gitleaks` 或 `truffleHog` 掃描器。不論檔案路徑為何，只要偵測到疑似 API Key、密碼或憑證字串，一律強制攔截進人類閘門。
+    *   **系統白名單豁免權 (System Whitelist Bypass)**：為確保藍圖同步 (Blueprint Sync) 能夠順利執行，若變更檔案為 `docs/LEARNINGS_AND_RULES.md` 且提交者為合法 Agent 帳號，CI 將自動豁免該檔案的越界檢查。
+*   **強制憑證掃描 (Secret Scanning)**：CI 內建 `gitleaks` 或 `truffleHog` 掃描器。不論檔案路徑為何，只要偵測到疑似 API Key、密碼或憑證字串，一律強制攔截進人類閘門。同時，系統會強制阻擋 Agent 讀取或修改定義於 `.agentignore` 中的機密檔案。
 *   **依賴變更風險分級 (Dependency Risk Tiering)**：為避免所有依賴變更都無差別進入人類閘門造成「閘門疲勞」，依變更性質分級處理，由 CI 自動判讀並回填 `dependency_change_risk`：
     *   `patch_bump`：既有依賴的 patch/minor 版本號更新，且無新增套件 → 僅記錄於稽核軌跡，**不**強制進人類閘門。
     *   `major_bump`：既有依賴的大版號 (Major Version) 更新 → 強制進人類閘門，視為高破壞性風險。
@@ -124,7 +125,9 @@ reset_history: []
 | **高風險 (Elevated)** | 命中 `.env`、`config/`、CI/CD 腳本（`.github/workflows/`）、`new_dependency` 或 `major_bump` | 須為 `CODEOWNERS` 名單中對應目錄的指定負責人，且不得為該 PR 的提交者本人 |
 | **關鍵 (Critical)** | CI 偵測到疑似洩漏憑證、或 `contains_db_migration: true` | 須經 `CODEOWNERS` 中至少一名 Tech Lead 層級核准，且不得為提交者本人 |
 
-*   **單人維護條款 (Solo-Maintainer Clause)**：若專案為單一擁有者（如個人專案），允許繞過 Elevated 與 Critical 層級「不得為提交者本人」的限制。**但強制要求**人類在放行前，必須於開發計畫書中的「例外狀況決策」區塊留下明確的商業授權文字紀錄，以落實「老闆必須知情風險並親自授權」的原則。
+*   **單人維護條款 (Solo-Maintainer Clause)**：若專案為單一擁有者（如個人專案），允許繞過 Elevated 與 Critical 層級「不得為提交者本人」的限制。**但強制要求**人類在放行前，必須於開發計畫書中的「例外狀況決策」區塊留下明確的商業授權文字紀錄，以落實「老闆必須知情風險並親自授權」的原則。*(CI 引擎將執行 `grep` 檢查，若發現該欄位空白將強制阻擋 Merge)*。
+
+*   **真正的 Git-Level 合併衝突乾跑檢查**：系統不會只依賴邏輯白名單防護。在 `APPROVED -> MERGED` 前夕，CI 將執行一次 `git merge origin/main --no-commit`。若發生真實代碼衝突，將直接退回給 Jules 處理，確保進入 `main` 分支的代碼 100% 安全。
 
 *   **人類閘門回傳路由**：
     *   **核准**：核准者在 PR 介面點擊 `Approve` 審查或留言 `/approve`。系統驗證留言者是否具備該風險等級所需權限，通過後標記 `[STATUS: APPROVED]`，自動恢復管線進入合併程序；若權限不足，系統拒絕該次核准並在稽核軌跡記錄無效嘗試。
