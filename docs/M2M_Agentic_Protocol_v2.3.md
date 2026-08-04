@@ -1,7 +1,7 @@
 # 🤖 M2M Agentic Protocol: Jules x Antigravity 雙 AI 自主對接執行協議書 (v2.3 完整生產版)
 ### *(Machine-to-Machine Autonomous Handshake Protocol with Robust State Machine, Human Gateways & Accountability)*
 
-> **使用說明**：本協議針對 v2.2 的審查意見進行最終補強，並導入了《快思慢想》的雙系統 (System 1 & System 2) 分工架構，定義了標準化的《開發計畫書》範本，確立了「人類負責決策、AI 負責技術」的高效協作模式。
+> **使用說明**：本文件為 M2M 系統的底層規格與約束。請務必搭配 `COT.md` (設計哲學)、`WorkFlow.md` (管線流轉) 以及 `UserManual.md` (操作手冊) 一併閱讀，以確保全域架構的認知一致性。
 
 ---
 

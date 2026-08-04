@@ -33,9 +33,12 @@
 | **降級干預次數** | < 15% | 觸發人類手動介入排除障礙的比例。 |
 
 ## 📁 專案檔案結構
-* `docs/M2M_Agentic_Protocol_v2.3.md`：協議核心規格書。
+* `docs/M2M_Agentic_Protocol_v2.3.md`：協議核心規格書 (底層規範)。
+* `docs/COT.md`：思維鍊與核心設計哲學 (心法與戰略層)。
+* `docs/WorkFlow.md`：全自動工作流與管線機制 (流轉與異常路由)。
+* `docs/UserManual.md`：操作手冊與 FAQ (從 0 到 1 建置與日常操作)。
 * `docs/State_Diagram.mermaid`：M2M 狀態轉換圖。
-* `.github/workflows/m2m-protocol.yml`：CI/CD 驗證與閘門控制引擎。
+* `.github/workflows/m2m-protocol.yml`：CI/CD 驗證與閘門控制引擎 (Reusable Workflow)。
 * `.github/CODEOWNERS`：分級權限與責任歸屬清單。
 
 ## 🚀 未來整合規劃 (Future Integration)
