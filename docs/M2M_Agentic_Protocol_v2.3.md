@@ -19,27 +19,36 @@
 
 ### 角色 A：Jules (架構師與審查者 / 系統二：慢想)
 *   **特質**：擅長邏輯分析、深思熟慮。
-*   **職責**：接收並解析《開發計畫書》、制定全域技術架構、拆解任務分配給 Antigravity 或自己、處理複雜演算法、進行深度的 Code Review 與安全性審查、確保最終程式碼品質。
-*   **執行環境**：雲端非同步虛擬機。
+*   **職責**：接收並解析《開發計畫書》、強制讀取藍圖 (Blueprint)、制定全域技術架構、拆解任務分配給 Antigravity、處理複雜演算法、進行深度的 Code Review、執行藍圖同步 (Blueprint Sync)。
+*   **執行環境**：完全受控的 GitHub/GitLab 雲端非同步虛擬機。
 
 ### 角色 B：Antigravity (先鋒與生成者 / 系統一：快思)
 *   **特質**：擅長直覺反應、高速產出。
-*   **職責**：接收 Jules 的指令，快速建立程式碼骨架 (Scaffolding)、產出 UI 雛形、撰寫樣板程式碼 (Boilerplate)、快速修復簡單錯誤或掃描。
-*   **執行環境**：本地/雲端互動 IDE 執行環境。
+*   **職責**：接收 Jules 的指令，快速建立程式碼骨架 (Scaffolding)、產出 UI 雛形、撰寫樣板程式碼 (Boilerplate)、根據 CI 錯誤日誌自動修復。
+*   **執行環境**：完全受控的 GitHub/GitLab 雲端非同步虛擬機。
 
 ### 角色 C：人類 / 產品負責人 (Human / Product Owner)
-*   **職責**：負責定義產品的「計畫目標」、「功能需求」與「預期效益」。不涉及技術細節實作。僅在關鍵決策點（如架構確認、衝突排解、最終合併上線）進行拍板定案。
+*   **職責**：負責定義產品的「計畫目標」、「功能需求」與「預期效益」。不涉及技術細節實作。僅在關鍵商業決策點（如成本超標、需求妥協、最終上線驗收）進行拍板定案。
 *   **協作入口**：透過填寫 `templates/DEVELOPMENT_PLAN_TEMPLATE.md` 啟動整個 M2M 開發流程。
+
+> ⛔ **絕對禁止條款 (No Local AI IDEs)**：為防止 AI 上下文污染 (Context Pollution) 與逃避稽核軌跡，**嚴禁在本地端使用 AI IDE (如 Cursor, Cline) 進行程式碼編寫與除錯**。所有開發任務強制於版本控制系統 (VCS) 的全自動管線中進行。
 
 ---
 
-## 二、 開發計畫書與自動對接機制 (Development Plan & Handoff)
+## 二、 雙軌分流與零接觸對接機制 (Dual-Track & Zero-Touch Handoff)
 
-1.  **計畫書啟動**：人類將需求填入 `DEVELOPMENT_PLAN_TEMPLATE.md` 並提交 PR/Issue。
-2.  **Jules 接手分析 (System 2 啟動)**：Jules 讀取計畫書，在文件中「自動產出區」填入技術架構與任務分工，並將特定任務分配給 Antigravity。
-3.  **Antigravity 執行 (System 1 啟動)**：Antigravity 根據分配的任務產出初步程式碼 (Draft PR) 或修改，並在日誌中更新狀態。
-4.  **Jules 審查與完善**：Jules 接手 Antigravity 的產出，進行 Code Review、修補邏輯並完成最終整合。
-5.  **人類關鍵拍板**：在架構確認階段或最終準備合併入 `main` 前，觸發人類閘門進行放行。
+### 2.1 雙軌分流機制 (Dual-Track Routing)
+*   **軌道一：開發軌道 (修改程式碼)**：必須填寫 `DEVELOPMENT_PLAN_TEMPLATE.md`，並嚴格遵循下方 2.2 的全自動 M2M 管線。
+*   **軌道二：工作軌道 (不改程式碼)**：僅限於日常詢問、架構探討或文件查閱。開啟獨立的對話 Session，**嚴禁在此軌道內夾帶修改程式碼的指令**，以確保 Context 輕量純粹。
+
+### 2.2 軌道一：全自動對接與實作流程 (Auto-Execution Pipeline)
+1.  **計畫書啟動**：人類將業務需求與限制（並運用三方視角自我檢核）填入 `DEVELOPMENT_PLAN_TEMPLATE.md`，並在 Issue/PR 留言 **`/execute`** 啟動全自動管線。
+2.  **大腦記憶庫讀取**：Jules 啟動後，**強制優先讀取**專案藍圖 (`docs/ARCHITECTURE.md` 與 `docs/LEARNINGS_AND_RULES.md`)，作為技術規劃的邊界。
+3.  **Jules 分析分工 (System 2)**：Jules 產出技術架構，將任務分派給 Antigravity。
+4.  **Antigravity 執行 (System 1)**：根據分配的任務產出初步程式碼 (Draft PR) 或修改。
+5.  **自動驗證與修復 (Auto-Healing Loop)**：PR 提交後，CI 伺服器自動運行測試。若測試失敗，CI 將錯誤日誌直接貼回 PR。Agent 接收錯誤日誌後自動於背景進行除錯與更新，**此循環完全無需人類介入**。若連續 3 次失敗 (Deadlock)，Jules 接手重新評估架構。
+6.  **藍圖同步 (Blueprint Sync)**：自動修復與 Code Review 皆通過後，準備進行 Merge 前，**Jules 必須自我盤點**：若本次任務產生了全域適用的新規則或避坑經驗，Jules 必須在當前 PR 中新增一個 Commit，將其寫入 `docs/LEARNINGS_AND_RULES.md`。
+7.  **人類最終放行**：藍圖同步完成後，系統標記為 `READY_FOR_DELIVERY`。老闆確認無誤後點擊 Merge，完成專案進化。
 
 ---
 
@@ -123,10 +132,13 @@ reset_history: []
     *   **關閉**：人類直接關閉 PR，任務終止。
 *   **逾時升級 (Escalation Timeout)**：若 `AWAITING_HUMAN_APPROVAL` 狀態持續超過 **24 小時** 無任何核准/拒絕動作，系統自動 @ 提及對應風險等級的核准者群組發送升級提醒。若**累積等待時間達 96 小時**（首次提醒後再過 72hr），標記為 `STALE_APPROVAL` 並暫緩排程。若持續閒置達 **7 天**，自動標記為 `ABANDONED` 廢棄任務，釋放資源。
 
-### 5.4 AI 內部仲裁與 REJECTED 路由 (Auto-Negotiation & Rejection)
-Jules 對 Antigravity 的產出擁有最終審查權。當 Jules 退回產出 (REJECTED) 時，必須依據以下原則決定返回路徑：
-*   **局部修正 (REJECTED -> IMPLEMENTED)**：若錯誤為單純的程式碼邏輯瑕疵、測試未過或安全漏洞，由 Antigravity 針對當前 PR 直接修正。
-*   **重新規劃 (REJECTED -> PLAN_READY)**：若 Jules 發現當前的技術路線、套件選型不可行，或違反了原先的架構設定，必須歸零重啟，並在 `reset_history` 中寫入原因。
+### 5.4 AI 內部仲裁與 CI 自動修復 (Auto-Negotiation & Auto-Healing)
+為落實零接觸實作，AI 必須具備從錯誤中自我恢復的能力：
+*   **CI 自動攔截與修復**：PR 提交後，若 CI 單元測試或靜態分析失敗，CI 腳本自動將錯誤日誌貼回 PR 並附加標籤。Agent 偵測後自動於背景讀取日誌並修正，此過程無需人類介入。
+*   **Jules 仲裁路由**：Jules 對 Antigravity 的產出擁有最終審查權。當 Jules 手動退回產出 (REJECTED) 時：
+    *   **局部修正 (REJECTED -> IMPLEMENTED)**：單純邏輯瑕疵或安全漏洞，由 Antigravity 針對當前 PR 直接修正。
+    *   **重新規劃 (REJECTED -> PLAN_READY)**：技術路線、套件選型不可行時，Jules 必須歸零重啟，並寫入 `reset_history`。
+*   **人類降級干預 (Human Intervention) 的限縮**：由於全面禁止本地 AI IDE，當發生連續 3 次 CI 失敗的 Deadlock 時，系統將暫停並發送通知。此時人類介入**僅限於**：重新檢視/放寬 AC 標準，或引導 Jules 更換技術路線（透過純文字留言），不建議人類親自下場寫 Code。
 
 ---
 
