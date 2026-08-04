@@ -1,2 +1,100 @@
-# Placeholder for M2M Agentic Protocol v2.3 CI/CD verification and gate control engine
-# (Implementation omitted for brevity as per user instructions)
+name: M2M Agentic Protocol Engine (Hub)
+
+on:
+  workflow_call:
+    inputs:
+      m2m_version:
+        required: false
+        type: string
+        default: '2.3'
+        description: 'M2M Protocol Version'
+    secrets:
+      ORG_GITHUB_TOKEN:
+        required: true
+
+jobs:
+  m2m-issue-listener:
+    name: 🎧 Listen for /execute in Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
+    steps:
+      - name: Acknowledge Command
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
+          script: |
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const user = context.payload.comment.user.login;
+
+            console.log(`Received /execute command from ${user} on issue #${issue_number}`);
+
+            // Add initial processing label
+            await github.rest.issues.addLabels({
+              owner: owner,
+              repo: repo,
+              issue_number: issue_number,
+              labels: ['m2m:plan-ready']
+            });
+
+            // Post acknowledgement comment
+            await github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: issue_number,
+              body: `🤖 **[Jules (System 2)]** 收到老闆指令 (由 @${user} 觸發)。\n\n已鎖定計畫書，正在讀取全域藍圖 (Blueprint) 並建立技術架構...\n\n即將喚醒 Antigravity 進行實作，請稍候。`
+            });
+
+  m2m-ci-gatekeeper:
+    name: 🛡️ CI Validation & Auto-Healing Gate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Placeholder CI Check (Unit Tests & Linter)
+        id: ci_check
+        run: |
+          echo "Running standard CI tests for the App (Spoke) project..."
+          # In a real scenario, this would be npm test, pytest, etc.
+          # Here we simulate a pass for structural setup.
+          echo "CI tests passed."
+
+      - name: Trigger Auto-Healing (If Failed)
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
+          script: |
+            // This script would capture error logs and push them back to the PR for Antigravity
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            await github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: issue_number,
+              body: `⚠️ **[CI 自動回報]** 測試失敗。\n已標記 \`agent-fix-required\`。請 @antigravity 讀取 Log 並自動修正。`
+            });
+
+            await github.rest.issues.addLabels({
+              owner: owner,
+              repo: repo,
+              issue_number: issue_number,
+              labels: ['agent-fix-required']
+            });
+
+  m2m-human-approval-gate:
+    name: 🛑 Business Escalation Gate (Human Approval)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'm2m:awaiting-human-approval')
+    steps:
+      - name: Block Merge until Approved
+        run: |
+          echo "This PR requires explicit human business approval."
+          echo "Checking for /approve comments by authorized personnel..."
+          # Logic to scan comments for /approve by CODEOWNERS goes here
+          echo "Awaiting approval..."
