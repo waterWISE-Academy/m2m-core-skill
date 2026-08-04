@@ -9,14 +9,15 @@ stateDiagram-v2
 
     PLAN_READY --> IMPLEMENTED: Antigravity 完成實作並提交 PR
 
-    IMPLEMENTED --> FATAL_ERROR: 逾時 2hr 無回應
-    IMPLEMENTED --> REJECTED: CI 檢查失敗\n(白名單越界 / Secret Scan / 測試失敗)
+    IMPLEMENTED --> IMPLEMENTED: CI 測試失敗 / 抓取 Log 自動重試\n(Auto-Healing Loop, 次數上限 3 次)
+    IMPLEMENTED --> FATAL_ERROR: 逾時 2hr 無回應 或 \nAuto-Healing 失敗超過 3 次 (Deadlock)
+    IMPLEMENTED --> REJECTED: CI 嚴重檢查失敗\n(白名單越界 / Secret Scan) 或\nJules 審查未過
     IMPLEMENTED --> AWAITING_HUMAN_APPROVAL: 命中人類閘門條件\n(migration / 憑證 / 高風險依賴 / 上線前10次)
-    IMPLEMENTED --> MERGED: 無需人類閘門且審查通過
+    IMPLEMENTED --> MERGED: 無需人類閘門且審查通過，\n並完成 Git 乾跑檢查
 
     REJECTED --> PLAN_READY: Jules 判斷需重新規劃\n(套件選型錯誤/技術路線不可行)
     REJECTED --> IMPLEMENTED: Jules 判斷僅需局部修正\n(單純邏輯瑕疵/測試未過)
-    REJECTED --> FATAL_ERROR: 累積滿 3 次 REJECTED\n或 reset_count 超過 2 次
+    REJECTED --> FATAL_ERROR: Jules 累計退回滿 3 次 (Deadlock)\n或 reset_count 超過 2 次
 
     AWAITING_HUMAN_APPROVAL --> APPROVED: 授權核准者 /approve
     AWAITING_HUMAN_APPROVAL --> CHANGES_REQUESTED: 授權核准者 /reject [原因]

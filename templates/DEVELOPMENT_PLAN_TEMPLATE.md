@@ -58,8 +58,9 @@
 
 ### 🚀 最終上線驗收 (Final Delivery Approval)
 *（所有任務皆為 `DONE`，準備將成果合併進入正式環境前觸發）*
+- [ ] **前置任務 (Mandatory)**: 藍圖同步 (Blueprint Sync) 已完成，Jules 已將本次技術決策與除錯經驗寫入 `LEARNINGS_AND_RULES.md` 等全域知識庫。
 - [ ] **系統狀態**: `READY_FOR_DELIVERY`
-- [ ] **人類核准放行 (Approve to Merge)**: [ ] (由人類勾選並點擊 Merge)
+- [ ] **人類核准放行 (Approve to Merge)**: [ ] (由人類勾選並點擊 Merge。*註：一旦系統進入穩定狀態，對於標準功能變更，此步驟可能由 AI 透過 Auto-Merge 代理執行，人類只需檢閱結果。*)
 
 ---
 

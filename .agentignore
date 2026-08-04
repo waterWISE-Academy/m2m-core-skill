@@ -1,0 +1,31 @@
+# 🛡️ M2M Agentic Security Boundary (.agentignore)
+# ---------------------------------------------------------
+# 本檔案定義了 AI Agent 絕對禁止讀取或修改的路徑。
+# CI 管線中的「檔案越界防護」與「Secret Scanning」會強制參照此清單。
+# ---------------------------------------------------------
+
+# 1. 憑證與環境變數 (Credentials & Env Vars)
+.env
+.env.*
+*.pem
+*.key
+*.cert
+config/secrets.yml
+credentials/
+auth/
+
+# 2. 客戶與生產資料 (Production Data)
+data/prod/
+dump.sql
+*.sqlite3
+*.db
+seeders/customer_data.json
+
+# 3. 基礎設施核心設定 (Infra Core)
+# (視專案情況開放，若不允許 Agent 動基建，請保持取消註解)
+# terraform/
+# k8s/
+# docker-compose.prod.yml
+
+# 4. 業務核心演算法 / 專利代碼 (Trade Secrets)
+# src/core/proprietary_algo/

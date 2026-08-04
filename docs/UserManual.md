@@ -20,6 +20,7 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
     *   點擊 `Save` 保存。這樣您未來的子專案才能順利取得「通關金牌」呼叫中央引擎。
 3.  **身分配置 (Agent Identity)**：為 Jules 與 Antigravity 建立專屬的 GitHub 機器人帳號（或封裝為 GitHub App），賦予 Repository 的讀寫權限。
 4.  **環境變數設定**：在儲存庫的 Secrets 中設定 `ORG_GITHUB_TOKEN` 等必要憑證。
+    *(⚠️ **注意：嚴禁使用 GitHub Actions 預設的 `GITHUB_TOKEN`**。預設 Token 發送的留言不會觸發後續的 Workflow，這會導致 M2M 引擎發生靜默斷鏈。您必須為主動執行的 Agent 申請一組專屬的 Personal Access Token (PAT) 或 GitHub App Token 來填入此欄位。)*
 
 ### Phase 2: 子專案掛載 (The Spoke)
 未來您開啟任何新專案（如電商網站、ERP 系統），只需執行以下 3 步即可連線至大腦：
@@ -66,6 +67,7 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 
 **Q1: 我可以直接開 Cursor 或 Cline 幫忙改一點點 Code 嗎？**
 > **絕對禁止。** 這是 M2M 的天條。在本地端使用 AI IDE 會破壞專案的「上下文潔癖」，造成不可逆的邏輯污染，並且讓該次除錯經驗無法寫入「全域藍圖 (Blueprint)」中。所有修改必須透過 Issue 發包給 GitHub 上的背景 Agent。
+> **緊急事件例外 (Emergency Override)**：若遇到凌晨產線大當機等極端危急狀況，允許人類工程師破壞 M2M 協議直接使用 IDE 搶修。但事後**必須**強制發起一個 `Post-Mortem` 任務，由 Jules 將本次手動修改的邏輯，事後補登記回 `LEARNINGS_AND_RULES.md` 藍圖中，以維持系統記憶。
 
 **Q2: 如果 CI 一直紅燈，Antigravity 好像卡在無限迴圈，我該怎麼介入？**
 > 系統內建了防 Deadlock 機制。如果連續 3 次 CI 失敗，系統會自動切斷迴圈並通知您。
