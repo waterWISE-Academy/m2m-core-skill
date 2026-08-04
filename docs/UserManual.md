@@ -10,10 +10,16 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 
 ### Phase 1: 中央大腦設定 (The Hub)
 這是您所有專案的基礎設施核心。
-1.  **Fork 或 Clone 核心庫**：建立您自己的 `m2m-core-skill` 儲存庫。
-2.  **身分配置 (Agent Identity)**：為 Jules 與 Antigravity 建立專屬的 GitHub 機器人帳號（或封裝為 GitHub App），賦予 Repository 的讀寫權限。
-3.  **環境變數設定**：在儲存庫的 Secrets 中設定 `ORG_GITHUB_TOKEN` 等必要憑證。
-4.  *(進階)* 確認 `.github/workflows/m2m-protocol.yml` 已正確啟動並能監聽 Webhook。
+1.  **建立核心庫**：建立您自己的 `m2m-core-skill` 儲存庫。強烈建議將此儲存庫設為 **Private (私有)** 以保護您的商業機密與自動化引擎。
+2.  **【關鍵】設定私有庫的 Action 存取權限**：
+    *若您的 `m2m-core-skill` 是 Private 狀態，GitHub 預設會阻擋其他專案呼叫它。您必須手動開啟權限：*
+    *   進入 `m2m-core-skill` 儲存庫網頁，點擊 `Settings`。
+    *   在左側選單點擊 `Actions` -> `General`。
+    *   捲動到頁面**最底端**，找到 **`Access`** 區塊。（注意：此區塊只有在專案為 Private 時才會出現）。
+    *   選擇 **`Accessible from repositories owned by '您的帳號'`** (個人帳號) 或 **`Accessible from repositories in the '您的組織'`** (組織帳號)。
+    *   點擊 `Save` 保存。這樣您未來的子專案才能順利取得「通關金牌」呼叫中央引擎。
+3.  **身分配置 (Agent Identity)**：為 Jules 與 Antigravity 建立專屬的 GitHub 機器人帳號（或封裝為 GitHub App），賦予 Repository 的讀寫權限。
+4.  **環境變數設定**：在儲存庫的 Secrets 中設定 `ORG_GITHUB_TOKEN` 等必要憑證。
 
 ### Phase 2: 子專案掛載 (The Spoke)
 未來您開啟任何新專案（如電商網站、ERP 系統），只需執行以下 3 步即可連線至大腦：
