@@ -48,7 +48,8 @@
 ```yaml
 jobs:
   call-m2m-skill:
-    uses: 您的組織/m2m-core-skill/.github/workflows/m2m-protocol.yml@main
+    # ⚠️ 強烈建議：請鎖定特定的版號標籤（如 @v2.3），避免因 Hub 的 main 分支變動而導致產線中斷
+    uses: 您的組織/m2m-core-skill/.github/workflows/m2m-protocol.yml@v2.3
     with:
       m2m_version: '2.3'
       worker_agent: 'opencode' # 動態調度實作 Agent

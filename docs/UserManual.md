@@ -22,12 +22,21 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 4.  **環境變數設定**：在儲存庫的 Secrets 中設定 `ORG_GITHUB_TOKEN` 等必要憑證。
     *(⚠️ **注意：嚴禁使用 GitHub Actions 預設的 `GITHUB_TOKEN`**。預設 Token 發送的留言不會觸發後續的 Workflow，這會導致 M2M 引擎發生靜默斷鏈。您必須為主動執行的 Agent 申請一組專屬的 Personal Access Token (PAT) 或 GitHub App Token 來填入此欄位。)*
 
-### Phase 2: 子專案掛載 (The Spoke)
-未來您開啟任何新專案（如電商網站、ERP 系統），只需執行以下 3 步即可連線至大腦：
-1.  建立一個全新的空白 GitHub 專案。
-2.  在專案中建立檔案 `.github/workflows/enable-m2m.yml`，寫入指向中央引擎的指令（詳見 README 的 `Future Integration` 區塊）。
-3.  將 `DEVELOPMENT_PLAN_TEMPLATE.md` 複製至該新專案的 `templates/` 目錄中。
-這樣就完成了！您的新專案已具備 M2M 全自動代工廠的防護與執行力。
+### Phase 2: 建立 Spoke 範本專案 (Template Packaging)
+為了讓未來的專案能「一秒開箱即用」，建議您建立一個名為 `m2m-spoke-template` 的 Repository，並在設定中勾選 **`Template repository`**。
+請在此範本專案中放入以下基礎設施：
+1.  **呼叫器 (`.github/workflows/m2m-caller.yml`)**：寫入指向中央引擎的指令。**強烈建議：** 呼叫路徑請綁定特定版號（如 `@v2.3`）而非 `@main`，避免總部改版導致產線中斷。
+2.  **計畫書範本 (`templates/DEVELOPMENT_PLAN_TEMPLATE.md`)**：放入商業驅動開發計畫書。
+3.  **基礎目錄 (`db/migrations/` 與 `docs/learnings/`)**：預留給資料庫變更與藍圖同步使用。
+4.  **基礎衛生檔案 (`.gitignore`)**：請務必加入標準的 `.gitignore` 檔案，防止 AI 在本地開發時意外上傳 `.env` 或系統暫存檔，造成資安破口。
+
+### Phase 3: 子專案掛載與防護鎖 (The Spoke)
+未來您只需使用上述的 `m2m-spoke-template` 點擊 **"Use this template"** 即可開啟新專案。
+⚠️ **【極度重要：手動上鎖】** GitHub Template **不會**複製分支保護規則。新專案建立後，您**必須**手動前往 `Settings` -> `Branches`，為 `main` 分支加上以下保護：
+*   ✅ **Require status checks to pass before merging** (強制 CI 通過才能合併)
+*   ✅ **Do not allow bypassing the above settings** (禁止強推)
+
+完成上鎖後，您的新專案就正式具備了 M2M 全自動代工廠的絕對防護力！
 
 ---
 
