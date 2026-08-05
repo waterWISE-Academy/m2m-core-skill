@@ -59,7 +59,7 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 
 ### 3.2 專案單人維護條款 (Solo-Maintainer Clause) 的授權
 如果您是這間公司的唯一老闆兼維護者。依據 M2M 協議，遇到「更改資料庫」或「引入重大套件」等高風險變更時，系統理應封鎖「提交者自己核准自己」。
-*   **您的動作**：為了合法覆寫此安全限制，您必須在計畫書的「例外狀況決策」區塊留下這段文字紀錄：*「已知此變更涉及資料庫重構/高風險變更，確認放行。」* 以留下明確的稽核軌跡。
+*   **您的動作**：為了合法覆寫此安全限制，您必須以**您的真實 GitHub 帳號**在 Issue/PR 留言進行明確授權。系統的 CI 閘門具備防偽造機制 (Auth Spoofing Prevention)，會嚴格比對留言者的 `github.actor`，AI 絕對無法靠捏造字串騙過閘門。
 
 ---
 
@@ -67,14 +67,13 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 
 **Q1: 我可以直接開 Cursor 或 Cline 幫忙改一點點 Code 嗎？**
 > **絕對禁止。** 這是 M2M 的天條。在本地端使用 AI IDE 會破壞專案的「上下文潔癖」，造成不可逆的邏輯污染，並且讓該次除錯經驗無法寫入「全域藍圖 (Blueprint)」中。所有修改必須透過 Issue 發包給 GitHub 上的背景 Agent。
-> **緊急事件例外 (Emergency Override)**：若遇到凌晨產線大當機等極端危急狀況，允許人類工程師破壞 M2M 協議直接使用 IDE 搶修。但事後**必須**強制發起一個 `Post-Mortem` 任務，由 Jules 將本次手動修改的邏輯，事後補登記回 `LEARNINGS_AND_RULES.md` 藍圖中，以維持系統記憶。
+> **緊急事件例外 (Emergency Override)**：若遇到凌晨產線大當機等極端危急狀況，允許人類工程師破壞 M2M 協議直接使用 IDE 搶修。但事後**必須**強制發起一個 `Post-Mortem` 任務，由 Jules 將本次手動修改的邏輯，事後補登記回 `docs/learnings/core-rules.md` 藍圖中，以維持系統記憶。
 
 **Q2: 如果 CI 一直紅燈，Antigravity 好像卡在無限迴圈，我該怎麼介入？**
-> 系統內建了防 Deadlock 機制。如果連續 3 次 CI 失敗，系統會自動切斷迴圈並通知您。
-> 此時，您**不要去改 Code**。請直接在 Issue 留言，給予大方向指導（例如：*「目前的套件可能有相容性問題，請 Jules 考慮更換使用 XXX 套件重寫。」*），讓 Agent 重新開始。
+> **您完全不需要介入。** 系統內建了防 Deadlock 機制。如果連續 3 次 CI 失敗，系統會自動觸發「架構重構 (Architectural Reset)」。Jules 會在背景自行吸收錯誤教訓、切換技術路線並重新發包。您唯一會被通知的時刻，只有當 Jules 評估「目前的預算或物理限制根本無法達成您的需求 (Scope Conflict)」時，才會請您做商業裁決。
 
 **Q3: 為什麼 PR 上的 Code 明明寫對了，但 Jules 還不准我 Merge？**
-> 請檢查是否卡在「藍圖同步 (Blueprint Sync)」階段。Jules 必須將本次任務的新規則寫入 `docs/LEARNINGS_AND_RULES.md`，這個過程可能會多花 1~2 分鐘。請耐心等待系統標記出 `READY_FOR_DELIVERY` 再點擊 Merge。
+> 請檢查是否卡在「藍圖同步 (Blueprint Sync)」階段。Jules 必須將本次任務的新規則寫入 `docs/learnings/` 目錄中，這個過程可能會多花 1~2 分鐘。請耐心等待系統標記出 `READY_FOR_DELIVERY` 再點擊 Merge。
 
 **Q4: 我只是想問 AI 一個技術名詞的意思，也要填開發計畫書嗎？**
 > 不需要。請遵守「雙軌分流」機制。開啟一個純粹的聊天視窗（軌道二）進行詢問即可，但千萬不要在那個視窗裡叫 AI 幫你寫 Code 或發 PR。

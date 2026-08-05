@@ -43,11 +43,11 @@
 
 ### 2.2 軌道一：全自動對接與實作流程 (Auto-Execution Pipeline)
 1.  **計畫書啟動**：人類將業務需求與限制（並運用三方視角自我檢核）填入 `DEVELOPMENT_PLAN_TEMPLATE.md`，並在 Issue/PR 留言 **`/execute`** 啟動全自動管線。
-2.  **大腦記憶庫讀取**：Jules 啟動後，**強制優先讀取**專案藍圖 (`docs/ARCHITECTURE.md` 與 `docs/LEARNINGS_AND_RULES.md`)，作為技術規劃的邊界。
-3.  **Jules 分析分工 (System 2)**：Jules 產出技術架構，將任務分派給 Antigravity。
-4.  **Antigravity 執行 (System 1)**：根據分配的任務產出初步程式碼 (Draft PR) 或修改。
-5.  **自動驗證與修復 (Auto-Healing Loop)**：PR 提交後，CI 伺服器自動運行測試。若測試失敗，CI 將錯誤日誌直接貼回 PR。Agent 接收錯誤日誌後自動於背景進行除錯與更新，**此循環完全無需人類介入**。若連續 3 次失敗 (Deadlock)，Jules 接手重新評估架構。
-6.  **藍圖同步 (Blueprint Sync)**：自動修復與 Code Review 皆通過後，準備進行 Merge 前，**Jules 必須自我盤點**：若本次任務產生了全域適用的新規則或避坑經驗，Jules 必須在當前 PR 中新增一個 Commit，將其寫入 `docs/LEARNINGS_AND_RULES.md`。
+2.  **大腦記憶庫讀取 (Git-Native RAG)**：Jules 啟動後，**強制優先讀取**專案藍圖 (`docs/ARCHITECTURE.md` 與 `docs/learnings/core-rules.md`)。系統同時會依據 Issue 標籤，動態讀取特定的學習日誌（如 `database.md`），維持 Context 純淨。
+3.  **Jules 分析分工 (System 2)**：Jules 產出技術架構，將任務分派給 Worker Agent。
+4.  **Worker 執行 (System 1)**：根據分配的任務產出初步程式碼 (Draft PR) 或修改。
+5.  **自動驗證與修復 (Auto-Healing Loop)**：PR 提交後，CI 伺服器自動運行測試。若測試失敗，CI 將錯誤日誌直接貼回 PR。Agent 接收錯誤日誌後自動於背景進行除錯與更新，**此循環完全無需人類介入**。若連續 3 次失敗 (Deadlock)，發動強制重構 (Architectural Reset)，由 Jules 接手重新評估架構。
+6.  **藍圖同步 (Blueprint Sync)**：自動修復與 Code Review 皆通過後，準備進行 Merge 前，**Jules 必須自我盤點**：若本次任務產生了全域適用的新規則或避坑經驗，Jules 必須在當前 PR 中新增一個 Commit，將其寫入對應的 `docs/learnings/*.md` 中。
 7.  **人類最終放行**：藍圖同步完成後，系統標記為 `READY_FOR_DELIVERY`。老闆確認無誤後點擊 Merge，完成專案進化。
 
 ---
@@ -101,7 +101,8 @@ reset_history: []
 ## 五、 雙 AI 通訊狀態機與演算法規範
 
 ### 5.1 計數防濫用與 Liveness 逾時
-*   **REJECTED 歸零防濫用機制**：計數器（`rejection_count`）與歸零次數上限（`reset_count`，上限為 2）嚴格綁定 PR ID。每次歸零時，系統將 `reset_reason` 與時間戳寫入 Schema 的 `reset_history` 陣列（見第三節），不可事後修改。若累計歸零次數超過 2 次，系統強制封鎖並進入 `[STATUS: FATAL_ERROR]`。
+*   **REJECTED 歸零防濫用與強制重構 (Architectural Reset)**：計數器（`rejection_count`）與歸零次數（`architectural_reset_count`）嚴格綁定 PR ID。當 `rejection_count` 達 3 次（Deadlock）時，系統**不會**呼叫人類，而是自動觸發 **強制重構**。Jules 將關閉當前 PR，將失敗原因寫入 `docs/learnings/core-rules.md`，並退回 `PLAN_READY` 重新擬定新的架構路線。
+*   **重構的絕對熔斷閥值**：每次歸零重構時，系統會將 `reset_reason` 與時間戳寫入 Schema。若 `architectural_reset_count` 達到上限 **2 次**，系統將判定為「技術上無法實現」，強制轉入 `[STATUS: AWAITING_HUMAN_APPROVAL]` (Scope Conflict)，要求老闆進行 A/B 案的商業裁決。
 *   **Liveness 逾時機制 (Timeout)**：`PLAN_READY` 超過 4 小時或 `IMPLEMENTED` 超過 2 小時未響應，觸發 `[STATUS: FATAL_ERROR]`。
 *   **並發排隊逾時**：`CONFLICT_LOCKED` 狀態排隊超過 8 小時未輪到執行，觸發 `[STATUS: FATAL_ERROR]`。
 
@@ -125,9 +126,9 @@ reset_history: []
 | **高風險 (Elevated)** | 命中 `.env`、`config/`、CI/CD 腳本（`.github/workflows/`）、`new_dependency` 或 `major_bump` | 須為 `CODEOWNERS` 名單中對應目錄的指定負責人，且不得為該 PR 的提交者本人 |
 | **關鍵 (Critical)** | CI 偵測到疑似洩漏憑證、或 `contains_db_migration: true` | 須經 `CODEOWNERS` 中至少一名 Tech Lead 層級核准，且不得為提交者本人 |
 
-*   **單人維護條款 (Solo-Maintainer Clause)**：若專案為單一擁有者（如個人專案），允許繞過 Elevated 與 Critical 層級「不得為提交者本人」的限制。**但強制要求**人類在放行前，必須於開發計畫書中的「例外狀況決策」區塊留下明確的商業授權文字紀錄，以落實「老闆必須知情風險並親自授權」的原則。*(CI 引擎將執行 `grep` 檢查，若發現該欄位空白將強制阻擋 Merge)*。
+*   **單人維護條款與防偽造授權 (Auth Spoofing Prevention)**：若專案為單一擁有者，允許繞過「不得為提交者本人」的限制。但強制要求決策者必須在 Issue/PR 留言進行明確的商業授權。**嚴禁純文字解析**：CI 引擎不會掃描計畫書內的文字（以防 AI 捏造文字騙過閘門），而是強制比對 `github.actor` 是否與老闆的真實 GitHub 帳號 ID 一致。只有真實人類 ID 送出的授權指令才會被放行。
 
-*   **真正的 Git-Level 合併衝突乾跑檢查**：系統不會只依賴邏輯白名單防護。在 `APPROVED -> MERGED` 前夕，CI 將執行一次 `git merge origin/main --no-commit`。若發生真實代碼衝突，將直接退回給 Jules 處理，確保進入 `main` 分支的代碼 100% 安全。
+*   **真正的 Git-Level 合併衝突乾跑檢查**：系統不會只依賴邏輯白名單防護。在系統進入 MERGED 前夕（包含自動放行的 `IMPLEMENTED -> PRE_MERGE_CHECK` 與人類核准的 `APPROVED -> PRE_MERGE_CHECK`），CI 將無差別執行一次 `git merge origin/main --no-commit` 的乾跑 (Dry-run)。若發現合併衝突，則退回 `CONFLICT_LOCKED` 狀態，由 Jules 指示 Antigravity 進行 `git rebase` 與解衝突，**全程背景執行，絕不干擾老闆**。
 
 *   **人類閘門回傳路由**：
     *   **核准**：核准者在 PR 介面點擊 `Approve` 審查或留言 `/approve`。系統驗證留言者是否具備該風險等級所需權限，通過後標記 `[STATUS: APPROVED]`，自動恢復管線進入合併程序；若權限不足，系統拒絕該次核准並在稽核軌跡記錄無效嘗試。
@@ -141,17 +142,21 @@ reset_history: []
 *   **Jules 仲裁路由**：Jules 對 Antigravity 的產出擁有最終審查權。當 Jules 手動退回產出 (REJECTED) 時：
     *   **局部修正 (REJECTED -> IMPLEMENTED)**：單純邏輯瑕疵或安全漏洞，由 Antigravity 針對當前 PR 直接修正。
     *   **重新規劃 (REJECTED -> PLAN_READY)**：技術路線、套件選型不可行時，Jules 必須歸零重啟，並寫入 `reset_history`。
-*   **人類降級干預 (Human Intervention) 的限縮**：由於全面禁止本地 AI IDE，當發生連續 3 次 CI 失敗的 Deadlock 時，系統將暫停並發送通知。此時人類介入**僅限於**：重新檢視/放寬 AC 標準，或引導 Jules 更換技術路線（透過純文字留言），不建議人類親自下場寫 Code。
+*   **人類干預的終極限縮 (Zero-Touch Handoff)**：由於全面禁止本地 AI IDE，系統已拔除所有技術問題呼叫人類的機制（如 Git 衝突、CI Deadlock、退版失敗）。人類介入**僅限於**：重新檢視/放寬 AC 標準（Scope Conflict），或做商業授權。
 
 ---
 
 ## 六、 異常處理、自動回滾與稽核軌跡
 
 ### 6.1 失敗降級與智慧回滾 (Smart Rollback)
-*   **連續三次拒絕**：累積滿 3 次 `REJECTED`，鎖定為 `[STATUS: FATAL_ERROR]`，代表 AI 發生 Deadlock。
-*   **合併後崩潰與 Migration 排除**：若 Main 分支合併後 CI 失敗：
-    *   **條件 A (含 Migration)**：若 YAML 中 `contains_db_migration: true`，**絕對禁止自動 revert**，系統立即發送即時通知（Slack/Email）並標記 `critical-migration-failure`，強制交由人類手動介入處理。
-    *   **條件 B (純程式碼)**：自動觸發 `git revert` 退回上一版，發送通知，並建立標記為 `critical-bug` 的 Issue 交由 Jules 重新分析。**若 `git revert` 本身發生衝突失敗**，則標記該 Issue 為 `critical-bug-manual-intervention` 並升級通知人類，停止自動化修復。
+*   **連續三次拒絕或 CI 失敗 (Deadlock)**：累積滿 3 次 `REJECTED` 或 Auto-Healing 失敗，觸發強制的 **Architectural Reset (架構重構)**。Jules 必須在背景吸收教訓並重擬計畫（上限 2 次，超過轉 Scope Conflict）。
+*   **合併後崩潰與 Migration 排除 (上線後崩潰)**：若 Main 分支合併後 CI 失敗：
+    *   **條件 A (含 Migration 降級防護)**：若 YAML 中 `contains_db_migration: true`（或偵測到 `db/migrations/` 目錄變更），**絕對禁止自動 revert**。
+        1. 系統立即將應用程式切換為 **唯讀模式 (Read-Only)** 防止資料污染。
+        2. Jules 產出 Roll-forward (向前熱修復) 補丁 PR。
+        3. 補丁**必須在背景的 Staging 環境（透過 DB 快照）進行 Dry-run 驗證**。
+        4. 若 Staging 驗證通過，執行正式修復。若 Staging 失敗，系統**立刻熔斷並發送最高級別警報通報人類**，嚴禁盲目寫入正式 DB。
+    *   **條件 B (純程式碼)**：自動觸發 `git revert` 退回上一版，發送通知，並建立標記為 `critical-bug` 的 Issue 交由 Jules 重新分析。**若 `git revert` 本身發生衝突失敗**，由 AI 團隊在背景強制介入解決並覆蓋，絕不呼叫人類。
 
 ### 6.2 稽核軌跡 (Audit Trail)
 所有事件自動封存於 `docs/audit_trails/{task_id}.log`，須包含但不限於：

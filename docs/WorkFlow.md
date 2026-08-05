@@ -23,8 +23,8 @@
 
 ### Phase A: 喚醒與解析 (Initialization)
 1.  **觸發 Webhook**：GitHub Actions 監聽到 `/execute` 留言，標記 Issue 狀態為 `PLAN_READY`。
-2.  **大腦記憶庫讀取**：Jules (System 2) 被喚醒。啟動時**強制優先讀取**專案根目錄的 `docs/ARCHITECTURE.md` 與 `docs/LEARNINGS_AND_RULES.md`，獲取技術邊界與歷史避坑指南。
-3.  **架構產出**：Jules 解析人類的《開發計畫書》，產出技術架構，並將任務拆解，指派給 Antigravity (System 1)。
+2.  **大腦記憶庫讀取 (Git-Native RAG)**：Jules (System 2) 被喚醒。啟動時**強制優先讀取** `docs/ARCHITECTURE.md` 與 `docs/learnings/core-rules.md`。同時依據 Issue 的標籤 (如 `m2m:database`) 動態載入對應領域的學習日誌，實現精確的 Context 掛載，避免記憶體溢出。
+3.  **架構產出**：Jules 解析人類的《開發計畫書》，產出技術架構，並將任務拆解，指派給 Worker Agent。
 
 ### Phase B: 實作與自我修復 (Execution & Auto-Healing)
 1.  **提交草稿 PR**：Antigravity 被喚醒，建立 Branch，撰寫程式碼並發布 Pull Request。
@@ -35,10 +35,10 @@
     *   **此循環全程於背景執行，無需人類介入**。
 
 ### Phase C: 深度審查與收斂 (Review & Blueprint Sync)
-1.  **Jules Code Review**：當 CI 亮綠燈後，Jules 進場對 Antigravity 的程式碼進行深度邏輯與資安審查。
+1.  **Jules Code Review**：當 CI 亮綠燈後，Jules 進場對程式碼進行深度邏輯與資安審查。
 2.  **藍圖同步 (Blueprint Sync)**：
-    *   審查通過，準備合併前，Jules 強制執行盤點：**「本次開發是否產生了全域適用的新規則或學習經驗？」**
-    *   若有，Jules 必須在當前 PR 中新增 Commit，將經驗寫入 `docs/LEARNINGS_AND_RULES.md`，完成長期記憶的儲存。
+    *   審查通過，準備合併前，Jules 強制執行盤點：**「本次開發是否產生了新規則或學習經驗？」**
+    *   若有，Jules 必須在當前 PR 中新增 Commit，將關鍵教訓寫入 `docs/learnings/core-rules.md` (全域) 或特定的標籤檔案中，完成結構化的長期記憶儲存。
 
 ### Phase D: 商業放行 (Human Business Delivery)
 1.  **狀態轉換**：上述流程完備後，PR 被標記為 `READY_FOR_DELIVERY`。
@@ -48,20 +48,28 @@
 
 ## 3. 異常升級與降級路由 (Escalation & Downgrade Paths)
 
-在全自動管線中，不可避免會遇到 AI 無法自行消化的死胡同。系統設有嚴格的熔斷與升級機制：
+在全自動管線中，不可避免會遇到各種技術死胡同。依據「絕對不讓老闆進會議室評理」的原則，系統的熔斷與自治機制如下：
 
-### 3.1 Deadlock (技術死鎖)
+### 3.1 Deadlock (技術死鎖) 與強制重構
 *   **觸發條件**：在 Phase B 的自動修復迴圈中，同一任務連續 **3 次** CI 測試失敗；或被 Jules 退回 (REJECTED) **3 次**。
-*   **系統反應**：暫停自動化管線，標記 `[STATUS: FATAL_ERROR]`，並 `@呼叫人類決策者`。
-*   **人類介入 (限縮干預)**：人類**不應親自下場寫 Code**，而是透過文字留言，引導 Jules 更換技術路線、或放寬最初設定的 AC 標準。
+*   **系統反應 (AI 自治)**：
+    1. 系統**不會**打擾人類老闆。
+    2. Jules 強制介入，發動「架構重構 (Architectural Reset)」。
+    3. Jules 必須將此失敗路線記錄至 `docs/learnings/core-rules.md` (標記為此路不通)，並產出一份全新的技術實作計畫發包給 Worker Agent。
+    4. **絕對熔斷閥值**：若 Jules 的架構重構次數達到 **2 次 (architectural_reset_count)** 仍無法成功，系統將判定為「技術上無法實現」，強制轉入 **3.2 Scope Conflict** 交由老闆裁決。
 
-### 3.2 Scope Conflict (範圍衝突)
-*   **觸發條件**：Jules 在 Phase A 規劃架構時，發現人類要求的驗收標準 (AC) 在現有預算或架構下無法實現；或引入了需付費的第三方 API。
-*   **系統反應**：暫停執行，標記 `AWAITING_HUMAN_APPROVAL`，將替代方案（A 案/ B 案）貼在計畫書的「例外狀況決策」區塊。
-*   **人類介入**：針對成本或需求進行商業妥協，給出選擇後放行。
+### 3.2 Scope Conflict (商業/範圍衝突) - 唯一允許敲門的場景
+*   **觸發條件**：Jules 在 Phase A 規劃架構，或在解決 Deadlock 時，發現人類要求的驗收標準 (AC) 在「現有預算、物理限制或基礎架構下」完全無法實現；或必須引入需高額付費的第三方 API。
+*   **系統反應**：暫停執行，標記 `AWAITING_HUMAN_APPROVAL`，將替代方案（例如：降級體驗的 A 案 / 需要加錢的 B 案）貼在計畫書的「例外狀況決策」區塊。
+*   **老闆決策**：這屬於商業判斷。老闆依據投資報酬率給予決策（例如：「同意降級體驗採用 A 案」）。
 
-### 3.3 Post-Merge Failure (上線後回滾機制)
-*   **觸發條件**：PR 合併入 `main` 分支後，部署 CI 崩潰。
-*   **系統反應**：
-    *   **純程式碼變動**：系統自動觸發 `git revert` 撤銷合併，並開立最高優先級的 Bug Issue。
-    *   **含資料庫變更 (Migration)**：絕對禁止自動回滾！系統將發出最高級別的 Slack/Email 警報，強制人類手動介入處理，防堵資料庫毀損。
+### 3.3 Git 衝突與上線後崩潰 (Post-Merge Failure)
+*   **系統進入 MERGED 前的乾跑衝突 (Dry-Run Conflict)**：任何 PR 合併前若發生 Git 衝突，系統將退回 `CONFLICT_LOCKED`。Jules 將指示 Antigravity 進行 `git rebase` 並處理衝突，全程背景執行。
+*   **上線後純程式碼崩潰**：系統自動觸發 `git revert` 撤銷合併，並在背景重啟修復管線。
+*   **上線後含資料庫變更 (Migration) 的崩潰**：
+    *   **系統反應 (AI 自治)**：絕對禁止自動回滾！系統將進入緊急狀態，產出最高優先級的 **Roll-forward (向前熱修復)** 任務。
+    *   **資料庫降級與隔離測試 (SRE 防護)**：
+        1. 系統第一時間發送指令將應用程式切換為 **唯讀模式 (Read-Only)**，暫停新資料寫入防止污染。
+        2. Jules 產出修補 (Patch) PR 後，**必須在背景的 Staging 環境 (使用 Production DB 快照) 進行 Dry-run**。
+        3. 若 Staging 驗證通過，執行正式修復並回報老闆。
+        4. **最後底線**：若 Staging 測試失敗，系統將立刻熔斷並發送最高級別警報通知老闆，嚴禁 AI 盲目對正式資料庫進行 Hotfix 覆蓋。
