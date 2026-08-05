@@ -19,8 +19,10 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
     *   選擇 **`Accessible from repositories owned by '您的帳號'`** (個人帳號) 或 **`Accessible from repositories in the '您的組織'`** (組織帳號)。
     *   點擊 `Save` 保存。這樣您未來的子專案才能順利取得「通關金牌」呼叫中央引擎。
 3.  **身分配置 (Agent Identity)**：為 Jules 與 Antigravity 建立專屬的 GitHub 機器人帳號（或封裝為 GitHub App），賦予 Repository 的讀寫權限。
-4.  **環境變數設定**：在儲存庫的 Secrets 中設定 `ORG_GITHUB_TOKEN` 等必要憑證。
-    *(⚠️ **注意：嚴禁使用 GitHub Actions 預設的 `GITHUB_TOKEN`**。預設 Token 發送的留言不會觸發後續的 Workflow，這會導致 M2M 引擎發生靜默斷鏈。您必須為主動執行的 Agent 申請一組專屬的 Personal Access Token (PAT) 或 GitHub App Token 來填入此欄位。)*
+4.  **環境變數設定 (門禁卡與大腦燃料)**：在儲存庫的 Secrets (Settings -> Secrets and variables -> Actions) 中，您必須設定以下兩類必要憑證：
+    *   **門禁卡 (`ORG_GITHUB_TOKEN`)**：授權 Agent 跨專案留言、發 PR 的權限。
+        *(⚠️ **注意：嚴禁使用 GitHub Actions 預設的 `GITHUB_TOKEN`**。預設 Token 發送的留言不會觸發後續的 Workflow，這會導致 M2M 引擎發生靜默斷鏈。您必須為主動執行的 Agent 申請一組專屬的 Personal Access Token (PAT) 填入此欄位。)*
+    *   **大腦燃料 (LLM API Key)**：授權 Agent 呼叫外部 AI 模型的思考能力。您必須至少提供一把金鑰，例如 **`OPENAI_API_KEY`** 或 **`ANTHROPIC_API_KEY`**，系統才能在背景驅動 Worker Agent 寫出程式碼。
 
 ### Phase 2: 建立 Spoke 範本專案 (Template Packaging)
 為了讓未來的專案能「一秒開箱即用」，建議您建立一個名為 `m2m-spoke-template` 的 Repository，並在設定中勾選 **`Template repository`**。
@@ -86,3 +88,9 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 
 **Q4: 我只是想問 AI 一個技術名詞的意思，也要填開發計畫書嗎？**
 > 不需要。請遵守「雙軌分流」機制。開啟一個純粹的聊天視窗（軌道二）進行詢問即可，但千萬不要在那個視窗裡叫 AI 幫你寫 Code 或發 PR。
+
+**Q5: GitHub Token (`ORG_GITHUB_TOKEN`) 跟 LLM API Key (如 `OPENAI_API_KEY`) 有什麼不同？只設定一個可以嗎？**
+> **不行，兩者缺一不可。**
+> *   **GitHub Token 是「門禁卡」**：它讓系統有權限去您的專案裡建立分支、留言、發起 Pull Request (控制「手腳」)。
+> *   **LLM API Key 是「大腦燃料」**：Agent 本身只是空殼腳本，當它需要讀懂計畫書、寫出程式碼時，必須連線到 OpenAI 或 Anthropic (控制「大腦思考」)。
+> 如果只給門禁卡沒給燃料，AI 可以發留言，但寫不出任何 Code；如果只給燃料沒給門禁卡，AI 會因為無權操作專案而直接報錯。
