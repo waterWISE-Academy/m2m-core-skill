@@ -94,3 +94,19 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 > *   **GitHub Token 是「門禁卡」**：它讓系統有權限去您的專案裡建立分支、留言、發起 Pull Request (控制「手腳」)。
 > *   **LLM API Key 是「大腦燃料」**：Agent 本身只是空殼腳本，當它需要讀懂計畫書、寫出程式碼時，必須連線到 OpenAI 或 Anthropic (控制「大腦思考」)。
 > 如果只給門禁卡沒給燃料，AI 可以發留言，但寫不出任何 Code；如果只給燃料沒給門禁卡，AI 會因為無權操作專案而直接報錯。
+
+**Q6: 除了 OpenAI 或 Anthropic，我可以換成「開源模型」來幫我寫 Code 嗎？要怎麼設定？**
+> **完全可以，M2M 系統支援模型解耦 (Model Decoupling)。**
+> 推薦使用最強的開源寫碼模型如 **Meta Llama 3.1 (405B/70B)** 或 **DeepSeek Coder V2**。
+> 您不需要自己架設伺服器，只需向以下第三方託管平台註冊並取得 API Key，接著設定到 GitHub Secrets 即可切換大腦：
+> *   **Groq 平台 (主打極速 Llama 3)**：註冊 `console.groq.com`，建議變數名稱設為 `GROQ_API_KEY`。
+> *   **Together AI (支援各種開源模型)**：註冊 `api.together.ai`，建議變數名稱設為 `TOGETHER_API_KEY`。
+> *   **DeepSeek 官方 (性價比極高)**：註冊 `platform.deepseek.com`，建議變數名稱設為 `DEEPSEEK_API_KEY`。
+
+**Q7: 上述提到的 API 方案 (無論開源或閉源) 有每日限額嗎？需要額外費用嗎？超量時系統會怎麼處理？**
+> **計費方式與限額**：所有由第三方平台提供的 LLM API（包含 OpenAI、Anthropic，以及上述託管開源模型的 Groq、Together AI 等）皆採用 **Pay-as-you-go (按 Token 使用量計費)** 模式。
+> *多數平台新註冊時會提供微量的「免費額度 (Free Tier)」供測試，但有嚴格的 Rate Limit (例如每分鐘請求次數上限)。當超過免費額度或頻率限制時，您必須在該平台上綁定信用卡進行儲值才能繼續使用。*
+>
+> **超量防護機制 (Dynamic Routing Fallback)**：
+> M2M 協定內建了「自動故障轉移」機制。若您在 GitHub Secrets 中同時設定了多把鑰匙（例如同時有 `ANTHROPIC_API_KEY` 與 `OPENAI_API_KEY`）：
+> 當系統的首選模型（如 Claude）因為「帳戶沒錢」或「觸發每日限額 (Rate Limit Error)」而罷工時，系統**不會崩潰**，而是會在背景自動攔截錯誤，並將剩餘的任務瞬間路由 (Route) 交給第二順位的模型（如 GPT-4o）接手完成，確保您的全自動產線永不中斷。
