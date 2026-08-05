@@ -10,14 +10,14 @@ stateDiagram-v2
     PLAN_READY --> IMPLEMENTED: Antigravity 完成實作並提交 PR
 
     IMPLEMENTED --> IMPLEMENTED: CI 測試失敗 / 抓取 Log 自動重試\n(Auto-Healing Loop, 次數上限 3 次)
-    IMPLEMENTED --> FATAL_ERROR: 逾時 2hr 無回應 或 \nAuto-Healing 失敗超過 3 次 (Deadlock)
+    IMPLEMENTED --> PLAN_READY: Auto-Healing 失敗超過 3 次 (Deadlock) → 發動強制重構
     IMPLEMENTED --> REJECTED: CI 嚴重檢查失敗\n(白名單越界 / Secret Scan) 或\nJules 審查未過
     IMPLEMENTED --> AWAITING_HUMAN_APPROVAL: 命中人類閘門條件\n(migration / 憑證 / 高風險依賴 / 上線前10次)
-    IMPLEMENTED --> MERGED: 無需人類閘門且審查通過，\n並完成 Git 乾跑檢查
+    IMPLEMENTED --> AWAITING_HUMAN_APPROVAL: (Scope Conflict) 商業邏輯不可行或重構逾 2 次，交由老闆裁決
 
-    REJECTED --> PLAN_READY: Jules 判斷需重新規劃\n(套件選型錯誤/技術路線不可行)
+    REJECTED --> PLAN_READY: Jules 判斷需重新規劃或退回滿 3 次\n(發動強制重構 Architectural Reset)
+    REJECTED --> AWAITING_HUMAN_APPROVAL: Architectural Reset 超過 2 次\n(Scope Conflict: 技術無法實現)
     REJECTED --> IMPLEMENTED: Jules 判斷僅需局部修正\n(單純邏輯瑕疵/測試未過)
-    REJECTED --> FATAL_ERROR: Jules 累計退回滿 3 次 (Deadlock)\n或 reset_count 超過 2 次
 
     AWAITING_HUMAN_APPROVAL --> APPROVED: 授權核准者 /approve
     AWAITING_HUMAN_APPROVAL --> CHANGES_REQUESTED: 授權核准者 /reject [原因]
@@ -25,22 +25,27 @@ stateDiagram-v2
     AWAITING_HUMAN_APPROVAL --> AWAITING_HUMAN_APPROVAL: 24hr 無回應 → 升級通知(@Tech Lead)
     AWAITING_HUMAN_APPROVAL --> STALE_APPROVAL: 累計 96hr 仍無回應 (首次提醒 +72hr)
 
-    APPROVED --> MERGED: 自動恢復管線，執行合併
     CHANGES_REQUESTED --> IMPLEMENTED: 退回 AI 團隊重新評估
 
-    MERGED --> POST_MERGE_OK: 主分支 CI 通過
-    MERGED --> POST_MERGE_FAILURE: 主分支 CI 失敗
+    IMPLEMENTED --> PRE_MERGE_CHECK: 無需人類閘門且審查通過，進入乾跑檢查
+    APPROVED --> PRE_MERGE_CHECK: 授權放行，進入乾跑檢查
 
-    POST_MERGE_FAILURE --> CRITICAL_MIGRATION_FAILURE: contains_db_migration = true\n(禁止自動revert，強制人類介入)
-    POST_MERGE_FAILURE --> AUTO_REVERTED: contains_db_migration = false\n(自動 git revert + 建立 critical-bug Issue)
-    POST_MERGE_FAILURE --> REVERT_FAILED: git revert 發生衝突失敗
+    PRE_MERGE_CHECK --> MERGED: git dry-run 成功無衝突
+    PRE_MERGE_CHECK --> CONFLICT_LOCKED: git dry-run 發現衝突\n(退回背景由 AI 自動 rebase/解衝突)
 
-    REVERT_FAILED --> FATAL_ERROR: 停止自動修復，手動介入
+    MERGED --> POST_MERGE_OK: 主分支部署/CI 通過
+    MERGED --> POST_MERGE_FAILURE: 主分支部署/CI 崩潰
+
+    POST_MERGE_FAILURE --> HOTFIX_FORWARD: contains_db_migration = true\n(禁止 revert，Jules 緊急發布向前修復 Patch)
+    POST_MERGE_FAILURE --> AUTO_REVERTED: contains_db_migration = false\n(自動 git revert 並重啟管線)
+    POST_MERGE_FAILURE --> CONFLICT_LOCKED: git revert 失敗，由 AI 介入強制覆蓋
+
+    HOTFIX_FORWARD --> POST_MERGE_OK: Staging 快照驗證通過，熱修復成功 (回報老闆)
+    HOTFIX_FORWARD --> FATAL_ERROR: Staging 快照驗證失敗，立即熔斷通報老闆
 
     AUTO_REVERTED --> PLAN_READY: Jules 重新分析後產出新計畫
 
-    FATAL_ERROR --> TASK_CLOSED: 人類介入處理後手動結案
-    CRITICAL_MIGRATION_FAILURE --> TASK_CLOSED: 人類手動修復後結案
+    FATAL_ERROR --> TASK_CLOSED: 產線崩潰無法修復 或 老闆放棄決策
     STALE_APPROVAL --> TASK_CLOSED: 人工排程重啟或結案
     STALE_APPROVAL --> ABANDONED: 持續閒置達 7 天，廢棄釋放資源
 
@@ -58,11 +63,12 @@ stateDiagram-v2
 
     note right of REJECTED
         rejection_count 綁定 PR ID
-        reset_count 上限 2 次
-        超過即強制 FATAL_ERROR
+        失敗滿 3 次將觸發 Architectural Reset
+        (退回 PLAN_READY 重新規劃，不干擾老闆)
     end note
 
-    note right of CRITICAL_MIGRATION_FAILURE
+    note right of HOTFIX_FORWARD
         絕對禁止自動 revert
-        立即發送 Slack/Email 通知
+        Jules 緊急發布向前熱修復 PR 繞過阻礙
+        保護 DB 同時維持自動化
     end note

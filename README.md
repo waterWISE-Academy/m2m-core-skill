@@ -2,8 +2,8 @@
 
 本專案為多代理協作（Multi-Agent System）中央技能庫，**定義並規劃了** M2M Agentic Protocol v2.3 協議規格。提供嚴謹的閉環狀態機、並發鎖定、分級人類安全閘門、資安防護與可追責稽核軌跡。
 
-> ⚠️ **安全警告 (Security Warning)**：
-> 目前的 `.github/workflows/m2m-protocol.yml` 雖具備完整的 Job 架構且能順利掛載，但其內部檢核邏輯為**「全綠燈橡皮圖章 (Rubber Stamp)」**。它不會執行任何實質的白名單或 Secret 攔截。在核心引擎程式碼實作完成前，**切勿將其用於正式生產環境的安全防護**。
+> 🛡️ **引擎實作狀態更新 (v2.3)**：
+> `.github/workflows/m2m-protocol.yml` 已實裝真實的 CI 防護閘門。包含動態 Agent 調度、`gitleaks` 憑證掃描、單人維護條款 (Solo-Maintainer Clause) 強制查核、Blueprint Sync 驗證，以及合併前的 Git Dry-Run。
 
 ## 📋 系統架構與核心角色
 本協議明確定義了雙 AI 與人類的協作分工：
@@ -43,11 +43,15 @@
 * `.github/workflows/m2m-protocol.yml`：CI/CD 驗證與閘門控制引擎 (Reusable Workflow)。
 * `.github/CODEOWNERS`：分級權限與責任歸屬清單。
 
-## 🚀 整合與掛載 (Integration)
-待未來核心引擎實作完成後，業務專案的掛載方式將如下所示：
+## 🚀 整合與掛載 (Integration / Spoke 呼叫 Hub)
+業務子專案掛載總指揮中心的方式如下。您可透過 `worker_agent` 參數動態指派實作單位（例如 `antigravity`, `opencode`, 或 `jules_solo`）：
 ```yaml
-# 示意代碼，目前尚未生效
 jobs:
   call-m2m-skill:
-    uses: Jaylanbee/m2m-core-skill/.github/workflows/m2m-protocol.yml@main
+    uses: 您的組織/m2m-core-skill/.github/workflows/m2m-protocol.yml@main
+    with:
+      m2m_version: '2.3'
+      worker_agent: 'opencode' # 動態調度實作 Agent
+    secrets:
+      ORG_GITHUB_TOKEN: ${{ secrets.ORG_GITHUB_TOKEN }}
 ```
