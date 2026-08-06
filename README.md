@@ -41,6 +41,7 @@
 * `docs/UserManual.md`：操作手冊與 FAQ (從 0 到 1 建置與日常操作)。
 * `docs/State_Diagram.mermaid`：M2M 狀態轉換圖。
 * `.github/workflows/m2m-protocol.yml`：CI/CD 驗證與閘門控制引擎 (Reusable Workflow)。
+* `.github/workflows/m2m-engine.yml`：Hub 私有執行引擎 (負責讀取全域 API Keys 並真實執行 LLM 推論與發布 PR)。
 * `.github/CODEOWNERS`：分級權限與責任歸屬清單。
 
 ## 🚀 整合與掛載 (Integration / Spoke 呼叫 Hub)

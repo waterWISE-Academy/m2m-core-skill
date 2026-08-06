@@ -45,8 +45,9 @@
 1.  **計畫書啟動**：人類將業務需求與限制（並運用三方視角自我檢核）填入 `DEVELOPMENT_PLAN_TEMPLATE.md`，並在 Issue/PR 留言 **`/execute`** 啟動全自動管線。
 2.  **大腦記憶庫讀取 (Git-Native RAG)**：Jules 啟動後，**強制優先讀取**專案藍圖 (`docs/ARCHITECTURE.md` 與 `docs/learnings/core-rules.md`)。系統同時會依據 Issue 標籤，動態讀取特定的學習日誌（如 `database.md`），維持 Context 純淨。
 3.  **Jules 分析分工 (System 2)**：Jules 產出技術架構，將任務分派給 Worker Agent。
-4.  **Worker 執行 (System 1)**：根據分配的任務產出初步程式碼 (Draft PR) 或修改。
-5.  **自動驗證與修復 (Auto-Healing Loop)**：PR 提交後，CI 伺服器自動運行測試。若測試失敗，CI 將錯誤日誌直接貼回 PR。Agent 接收錯誤日誌後自動於背景進行除錯與更新，**此循環完全無需人類介入**。若連續 3 次失敗 (Deadlock)，發動強制重構 (Architectural Reset)，由 Jules 接手重新評估架構。
+4.  **Hub Private Context 路由 (Cross-Repo Execution)**：為解決共用 Workflow 無法讀取 Hub 密鑰的限制，Spoke 專案的 `m2m-protocol.yml` 會發送 `repository_dispatch` 事件給 Hub 本身的 `m2m-engine.yml`。
+5.  **Worker 執行 (System 1)**：Hub 引擎接收事件並取得全域 API Keys，呼叫 LLM (如 DeepSeek/Groq) 生成程式碼，並自動透過 GitHub API 在 Spoke 端建立分支與 Draft PR。
+6.  **自動驗證與修復 (Auto-Healing Loop)**：PR 提交後，CI 伺服器自動運行測試。若測試失敗，CI 將錯誤日誌直接貼回 PR。Agent 接收錯誤日誌後自動於背景進行除錯與更新，**此循環完全無需人類介入**。若連續 3 次失敗 (Deadlock)，發動強制重構 (Architectural Reset)，由 Jules 接手重新評估架構。
 6.  **藍圖同步 (Blueprint Sync)**：自動修復與 Code Review 皆通過後，準備進行 Merge 前，**Jules 必須自我盤點**：若本次任務產生了全域適用的新規則或避坑經驗，Jules 必須在當前 PR 中新增一個 Commit，將其寫入對應的 `docs/learnings/*.md` 中。
 7.  **人類最終放行**：藍圖同步完成後，系統標記為 `READY_FOR_DELIVERY`。老闆確認無誤後點擊 Merge，完成專案進化。
 
