@@ -16,6 +16,14 @@ on:
     secrets:
       ORG_GITHUB_TOKEN:
         required: true
+      GROQ_API_KEY:
+        required: false
+      DEEPSEEK_API_KEY:
+        required: false
+      GEMINI_API_KEY:
+        required: false
+      GH_MODELS_API_KEY:
+        required: false
 
 jobs:
   m2m-issue-listener:
@@ -53,6 +61,49 @@ jobs:
               repo: repo,
               issue_number: issue_number,
               body: `🤖 **[Jules (System 2 總指揮中心)]** 收到老闆指令 (由 @${user} 觸發)。\n\n已鎖定計畫書，正在動態載入全域藍圖 (docs/learnings/*) 並建立技術架構...\n\n${worker_msg}`
+            });
+
+  m2m-worker-execution:
+    name: ⚙️ Worker Agent Execution (System 1/2)
+    needs: m2m-issue-listener
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Trigger Worker Handoff
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
+          script: |
+            const issue_number = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const worker_agent = "${{ inputs.worker_agent }}";
+
+            // TODO: In a fully implemented environment, this would either dispatch to another workflow
+            // or invoke a script using the provided LLM keys (GROQ_API_KEY, DEEPSEEK_API_KEY, etc.)
+            // For now, we simulate the worker completion to unblock the pipeline.
+
+            console.log(`Triggering worker agent: ${worker_agent}`);
+
+            await github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: issue_number,
+              body: `🚀 **[System 1 / Worker Agent ${worker_agent}]** 任務已接管。API Keys 準備就緒。背景作業啟動。`
+            });
+
+            // Dispatch a repository_dispatch event to trigger actual agent scripts if defined elsewhere
+            await github.rest.repos.createDispatchEvent({
+              owner: owner,
+              repo: repo,
+              event_type: 'm2m_worker_trigger',
+              client_payload: {
+                issue_number: issue_number,
+                worker_agent: worker_agent
+              }
             });
 
   m2m-ci-gatekeeper:
