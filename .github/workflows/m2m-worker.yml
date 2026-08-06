@@ -1,0 +1,29 @@
+name: M2M Worker Agent Trigger
+
+on:
+  repository_dispatch:
+    types: [m2m_worker_trigger]
+
+jobs:
+  worker-execute:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Execute Agent Simulation
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
+          script: |
+            const issue_number = context.payload.client_payload.issue_number;
+            const worker_agent = context.payload.client_payload.worker_agent;
+
+            console.log(`Executing worker logic for issue ${issue_number} using agent ${worker_agent}`);
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: `✅ **[Worker Agent]** 背景實作完成（Triggered via dispatch）。目前處於模擬完成狀態，準備建立 PR 發送審查。`
+            });
