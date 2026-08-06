@@ -1,0 +1,35 @@
+name: M2M Central Execution Engine
+
+on:
+  repository_dispatch:
+    types: [m2m_worker_trigger]
+
+jobs:
+  execute-worker:
+    name: ⚙️ Run AI Worker on Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Hub Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm install @actions/core @actions/github node-fetch@2
+
+      - name: Execute Worker Script
+        env:
+          SPOKE_OWNER: ${{ github.event.client_payload.spoke_owner }}
+          SPOKE_REPO: ${{ github.event.client_payload.spoke_repo }}
+          ISSUE_NUMBER: ${{ github.event.client_payload.issue_number }}
+          WORKER_AGENT: ${{ github.event.client_payload.worker_agent }}
+          ORG_GITHUB_TOKEN: ${{ secrets.ORG_GITHUB_TOKEN }}
+          GH_MODELS_API_KEY: ${{ secrets.GH_MODELS_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node .github/scripts/m2m_agent_router.js
