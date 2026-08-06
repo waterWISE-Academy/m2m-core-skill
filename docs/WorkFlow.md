@@ -27,8 +27,9 @@
 3.  **架構產出**：Jules 解析人類的《開發計畫書》，產出技術架構，並將任務拆解，指派給 Worker Agent。
 
 ### Phase B: 實作與自我修復 (Execution & Auto-Healing)
-1.  **提交草稿 PR**：Antigravity 被喚醒，建立 Branch，撰寫程式碼並發布 Pull Request。
-2.  **CI 自動攔截與修復 (Auto-Healing Loop)**：
+1.  **Hub Private Context 路由**：`m2m-protocol.yml` 會透過 `repository_dispatch` 發送訊號給 Hub 內部的 `m2m-engine.yml`，以安全獲取全域的 LLM API Keys。
+2.  **提交草稿 PR**：引擎中的 Worker Agent (Antigravity 等) 透過 LLM 生成程式碼，利用 GitHub API 在 Spoke 專案建立 Branch 並發布 Pull Request。
+3.  **CI 自動攔截與修復 (Auto-Healing Loop)**：
     *   PR 建立瞬間，CI 伺服器啟動自動化測試（單元測試、靜態掃描等）。
     *   **若測試失敗**：CI 腳本自動抓取 Error Logs 貼回 PR 留言，並標記 `@antigravity`。
     *   Antigravity 在背景接收 Log，分析錯誤並自動提交新的 Commit 進行修復。
