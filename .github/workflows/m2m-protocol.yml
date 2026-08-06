@@ -69,10 +69,30 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
     steps:
-      - name: Checkout Code
+      - name: Checkout Hub Code (m2m-core-skill)
         uses: actions/checkout@v3
+        with:
+          repository: waterWISE-Academy/m2m-core-skill
+          path: hub-repo
 
-      - name: Trigger Worker Handoff
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Trigger Worker Handoff (3-Tier Dynamic Routing)
+        env:
+          WORKER_AGENT: ${{ inputs.worker_agent }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GH_MODELS_API_KEY: ${{ secrets.GH_MODELS_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.ORG_GITHUB_TOKEN }}
+        run: |
+          echo "🚀 Starting real M2M Worker Router..."
+          node hub-repo/.github/scripts/m2m_agent_router.js
+
+      - name: Notify Issue
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
@@ -82,28 +102,11 @@ jobs:
             const repo = context.repo.repo;
             const worker_agent = "${{ inputs.worker_agent }}";
 
-            // TODO: In a fully implemented environment, this would either dispatch to another workflow
-            // or invoke a script using the provided LLM keys (GROQ_API_KEY, DEEPSEEK_API_KEY, etc.)
-            // For now, we simulate the worker completion to unblock the pipeline.
-
-            console.log(`Triggering worker agent: ${worker_agent}`);
-
             await github.rest.issues.createComment({
               owner: owner,
               repo: repo,
               issue_number: issue_number,
-              body: `🚀 **[System 1 / Worker Agent ${worker_agent}]** 任務已接管。API Keys 準備就緒。背景作業啟動。`
-            });
-
-            // Dispatch a repository_dispatch event to trigger actual agent scripts if defined elsewhere
-            await github.rest.repos.createDispatchEvent({
-              owner: owner,
-              repo: repo,
-              event_type: 'm2m_worker_trigger',
-              client_payload: {
-                issue_number: issue_number,
-                worker_agent: worker_agent
-              }
+              body: `🚀 **[System 1 / Worker Agent ${worker_agent}]** 任務已成功路由至 3-Tier 動態核心。背景作業執行完畢。`
             });
 
   m2m-ci-gatekeeper:
