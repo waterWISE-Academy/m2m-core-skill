@@ -131,3 +131,14 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 > 🚑 **優先級 3：自動故障轉移兜底 (Dynamic Fallback)**
 > *   **指派給**：GitHub Models (GPT-4o / Claude) 等免費聚合平台。
 > *   **調度邏輯**：做為所有節點（如 DeepSeek 連續 503 Service Unavailable，或 Gemini 額度耗盡）失效時的終極保險，提供「絕對防禦」與不中斷兜底。
+
+**Q9: 剛建立全新 Spoke 專案，在設定 `main` 分支保護時，勾選「Require status checks to pass」卻跳出錯誤「Required status checks cannot be empty」，不讓我存檔怎麼辦？**
+> 這是一個 GitHub 針對全新專案常見的「雞生蛋、蛋生雞」限制。
+> 因為您的新專案才剛建立，**還沒有跑過任何一次 GitHub Actions 工作流程**，系統找不到任何「檢查項目 (Status checks)」的名字可以讓您選，因此阻擋存檔。
+>
+> **💡 解法步驟 (Workaround)：**
+> 1. **暫時取消勾選**：在 Ruleset 設定頁面，先將 `Require status checks to pass` 取消勾選。
+> 2. **保留基本防護**：確認上方只有勾選 `Require a pull request before merging`。
+> 3. **儲存設定**：點擊最下方的 Create 完成建立。此時您的 `main` 分支已具備基本的 PR 審查防護。
+> 4. **觸發首航 (點火)**：回到專案發布您第一張含有 `/execute` 的開發計畫書 (Issue)。
+> 5. **事後補鎖**：一旦系統成功跑過第一次 AI 產線 (有了 Actions 紀錄)，您就可以隨時回到 Ruleset 設定畫面，把 `Require status checks to pass` 打勾，此時下拉選單就會出現中央大腦的檢查項目供您選取了！
