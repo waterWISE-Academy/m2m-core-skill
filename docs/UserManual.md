@@ -36,6 +36,12 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 *   ✅ **Require status checks to pass before merging** (強制 CI 通過才能合併)
 *   ✅ **Do not allow bypassing the above settings** (禁止強推)
 
+⚠️ **【極度重要：開啟自動合併 (Auto-Merge)】**
+為了達成 M2M 的「零接觸自動化 (Zero-Touch Autonomy)」願景，系統會在背景透過 GraphQL API 觸發 PR 自動合併。若未開啟此選項，Agent 會回報 `Auto merge is not allowed for this repository` 錯誤。
+*   **您的動作**：前往新專案的 `Settings` -> `General`。
+*   捲動至 **Pull Requests** 區塊。
+*   ✅ 勾選 **Allow auto-merge**。
+
 完成上鎖後，您的新專案就正式具備了 M2M 全自動代工廠的絕對防護力！
 
 ---
