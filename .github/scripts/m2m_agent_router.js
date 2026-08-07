@@ -194,13 +194,40 @@ async function runRealAgent() {
 
     console.log(`✅ Pull Request Created Successfully: ${prData.html_url}`);
 
-    // Add PR reference back to issue
-    await octokit.rest.issues.createComment({
-      owner: spokeOwner,
-      repo: spokeRepo,
-      issue_number: issueNumber,
-      body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n請進行 Code Review 或等待系統自動執行測試與審查。`
-    });
+    // Auto-Merge logic based on user request ("Zero-Touch Autonomy")
+    console.log(`[Auto-Merge] Attempting to auto-merge PR #${prData.number}...`);
+    try {
+      // Optional: Give GitHub a brief moment to process the PR creation
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const mergeResult = await octokit.rest.pulls.merge({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        pull_number: prData.number,
+        commit_title: `Auto-merge: [M2M-Agent] Implementation for Issue #${issueNumber}`,
+        merge_method: 'merge'
+      });
+
+      console.log(`✅ [Auto-Merge] PR #${prData.number} successfully merged: ${mergeResult.data.message}`);
+
+      // Update Issue comment to reflect completion and merge
+      await octokit.rest.issues.createComment({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        issue_number: issueNumber,
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，此 PR 已自動合併至 main 分支。任務完成！`
+      });
+    } catch (mergeError) {
+      console.error(`⚠️ [Auto-Merge Error] Failed to auto-merge PR #${prData.number}:`, mergeError.message);
+
+      // Fallback comment if auto-merge fails (e.g., branch protection rules)
+      await octokit.rest.issues.createComment({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        issue_number: issueNumber,
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n⚠️ **[Auto-Merge]** 自動合併失敗（可能遇到分支保護規則：${mergeError.message}）。請手動審查並合併。`
+      });
+    }
 
     console.log("🎉 Workflow completed successfully.");
 
