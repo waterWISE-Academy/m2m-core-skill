@@ -253,37 +253,42 @@ Expected output format:
     console.log(`✅ Pull Request Created Successfully: ${prData.html_url}`);
 
     // Auto-Merge logic based on user request ("Zero-Touch Autonomy")
-    console.log(`[Auto-Merge] Attempting to auto-merge PR #${prData.number}...`);
+    console.log(`[Auto-Merge] Attempting to enable auto-merge for PR #${prData.number} via GraphQL...`);
     try {
-      // Optional: Give GitHub a brief moment to process the PR creation
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const query = `
+        mutation enableAutoMerge($pullRequestId: ID!) {
+          enablePullRequestAutoMerge(input: {pullRequestId: $pullRequestId, mergeMethod: MERGE}) {
+            pullRequest {
+              autoMergeRequest {
+                enabledAt
+              }
+            }
+          }
+        }
+      `;
 
-      const mergeResult = await octokit.rest.pulls.merge({
-        owner: spokeOwner,
-        repo: spokeRepo,
-        pull_number: prData.number,
-        commit_title: `Auto-merge: [M2M-Agent] Implementation for Issue #${issueNumber}`,
-        merge_method: 'merge'
+      await octokit.graphql(query, {
+        pullRequestId: prData.node_id
       });
 
-      console.log(`✅ [Auto-Merge] PR #${prData.number} successfully merged: ${mergeResult.data.message}`);
+      console.log(`✅ [Auto-Merge] Successfully enabled auto-merge for PR #${prData.number}. It will merge once CI passes.`);
 
-      // Update Issue comment to reflect completion and merge
+      // Update Issue comment to reflect completion and auto-merge enablement
       await octokit.rest.issues.createComment({
         owner: spokeOwner,
         repo: spokeRepo,
         issue_number: issueNumber,
-        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，此 PR 已自動合併至 main 分支。任務完成！`
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 已成功授權 GitHub 進行自動合併。當 CI 檢查全數綠燈通過後，此 PR 將自動合併至 main 分支！`
       });
     } catch (mergeError) {
-      console.error(`⚠️ [Auto-Merge Error] Failed to auto-merge PR #${prData.number}:`, mergeError.message);
+      console.error(`⚠️ [Auto-Merge Error] Failed to enable auto-merge for PR #${prData.number}:`, mergeError.message);
 
-      // Fallback comment if auto-merge fails (e.g., branch protection rules)
+      // Fallback comment if auto-merge fails (e.g., allow auto-merge not enabled in repo settings)
       await octokit.rest.issues.createComment({
         owner: spokeOwner,
         repo: spokeRepo,
         issue_number: issueNumber,
-        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n⚠️ **[Auto-Merge]** 自動合併失敗（可能遇到分支保護規則：${mergeError.message}）。請手動審查並合併。`
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n⚠️ **[Auto-Merge]** 啟動自動合併失敗。原因：${mergeError.message}。\n\n💡 **提示**：若要支援真正的零接觸合併，請至 Spoke 倉庫的 Settings -> General -> Pull Requests 區塊中，勾選 **「Allow auto-merge」**。在此之前，請先手動審查並合併此 PR。`
       });
     }
 
