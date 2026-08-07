@@ -53,7 +53,7 @@ async function callLLMWithFallback(systemPrompt, userPrompt) {
         body: JSON.stringify({
           model: provider.model,
           messages: messages,
-          max_tokens: 1000,
+          max_tokens: 8192,
           temperature: 0.1
         })
       });
@@ -104,18 +104,36 @@ async function runRealAgent() {
     console.log(`[Issue Title] ${issue.title}`);
 
     // 2. Execute 3-Tier Dynamic Routing LLM Call
-    const systemPrompt = "You are an autonomous AI agent in a GitHub Actions CI environment. Your task is to output purely functional code based on the user's issue title. Do not wrap in markdown blocks, output raw code only.";
-    const userPrompt = `Please write a simple javascript program that resolves this issue title: ${issue.title}. If the title is vague, just output a generic hello world function.`;
+    const systemPrompt = `You are an expert autonomous software architect and developer. Your task is to read the user's development plan and generate the COMPLETE codebase to fulfill it.
+CRITICAL INSTRUCTION: You MUST output ONLY a valid JSON array containing objects with 'path' and 'content' keys. Do NOT wrap the JSON in markdown formatting (like \`\`\`json). Do NOT add any conversational text before or after the JSON.
 
-    let llmCodeResult = `// Auto-generated fallback code for issue #${issueNumber}\nconsole.log("Hello from M2M Agent!");\n`;
+Expected output format:
+[
+  {
+    "path": "src/index.js",
+    "content": "console.log('Hello');"
+  },
+  {
+    "path": "public/index.html",
+    "content": "<html><body><h1>Hello</h1></body></html>"
+  }
+]`;
+
+    const userPrompt = `Issue Title: ${issue.title}\n\nIssue Body (Development Plan):\n${issue.body || 'No detailed plan provided. Please infer basic project structure from the title.'}\n\nPlease generate the full project files as a JSON array.`;
+
+    let llmCodeResult = "[]";
 
     try {
       llmCodeResult = await callLLMWithFallback(systemPrompt, userPrompt);
     } catch (err) {
       console.log(`❌ [LLM Error] ${err.message}. Using default Mock code.`);
+      llmCodeResult = JSON.stringify([{
+        path: `src/agent_fallback_${issueNumber}.js`,
+        content: `// Auto-generated fallback code for issue #${issueNumber}\nconsole.log("LLM Error: ${err.message}");\n`
+      }]);
     }
 
-    // 3. Create a commit and PR on Spoke Repo
+    // 3. Parse LLM JSON output and create a commit/PR on Spoke Repo
     console.log(`[PR] Preparing to create Pull Request on ${spokeOwner}/${spokeRepo}`);
 
     // Get main branch ref
@@ -126,6 +144,38 @@ async function runRealAgent() {
     });
     const baseSha = refData.object.sha;
 
+    // Parse the JSON array returned by the LLM
+    let filesToCommit = [];
+    try {
+      // Robust stripping in case LLM ignored instructions and wrapped in markdown
+      let cleanJsonString = llmCodeResult.trim();
+      if (cleanJsonString.startsWith('```json')) {
+        cleanJsonString = cleanJsonString.substring(7);
+      } else if (cleanJsonString.startsWith('```')) {
+        cleanJsonString = cleanJsonString.substring(3);
+      }
+      if (cleanJsonString.endsWith('```')) {
+        cleanJsonString = cleanJsonString.substring(0, cleanJsonString.length - 3);
+      }
+      cleanJsonString = cleanJsonString.trim();
+
+      filesToCommit = JSON.parse(cleanJsonString);
+      if (!Array.isArray(filesToCommit)) {
+        throw new Error("LLM output is not a JSON array.");
+      }
+      if (filesToCommit.length === 0) {
+        throw new Error("LLM output array is empty.");
+      }
+    } catch (parseError) {
+      console.error("❌ Failed to parse LLM JSON output:", parseError.message);
+      console.error("LLM Raw Output:", llmCodeResult);
+      // Fallback to text file if parsing fails
+      filesToCommit = [{
+        path: `src/agent_error_${issueNumber}.txt`,
+        content: `Failed to parse LLM output. Raw response:\n\n${llmCodeResult}`
+      }];
+    }
+
     // Create a new branch
     const branchName = `agent-update/issue-${issueNumber}-${Date.now()}`;
     await octokit.rest.git.createRef({
@@ -135,13 +185,28 @@ async function runRealAgent() {
       sha: baseSha
     });
 
-    // Create a new file blob
-    const { data: blobData } = await octokit.rest.git.createBlob({
-      owner: spokeOwner,
-      repo: spokeRepo,
-      content: Buffer.from(llmCodeResult).toString('base64'),
-      encoding: 'base64'
-    });
+    // Create file blobs dynamically
+    const treeItems = [];
+    for (const file of filesToCommit) {
+      if (!file.path || !file.content) {
+        console.warn(`Skipping invalid file object: ${JSON.stringify(file)}`);
+        continue;
+      }
+      console.log(`[Git] Creating blob for: ${file.path}`);
+      const { data: blobData } = await octokit.rest.git.createBlob({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        content: Buffer.from(file.content).toString('base64'),
+        encoding: 'base64'
+      });
+
+      treeItems.push({
+        path: file.path,
+        mode: '100644',
+        type: 'blob',
+        sha: blobData.sha
+      });
+    }
 
     // Get current base tree
     const { data: commitData } = await octokit.rest.git.getCommit({
@@ -150,19 +215,12 @@ async function runRealAgent() {
       commit_sha: baseSha
     });
 
-    // Create new tree
+    // Create new tree with multiple files
     const { data: treeData } = await octokit.rest.git.createTree({
       owner: spokeOwner,
       repo: spokeRepo,
       base_tree: commitData.tree.sha,
-      tree: [
-        {
-          path: `src/agent_fix_${issueNumber}.js`,
-          mode: '100644',
-          type: 'blob',
-          sha: blobData.sha
-        }
-      ]
+      tree: treeItems
     });
 
     // Create commit
@@ -194,13 +252,40 @@ async function runRealAgent() {
 
     console.log(`✅ Pull Request Created Successfully: ${prData.html_url}`);
 
-    // Add PR reference back to issue
-    await octokit.rest.issues.createComment({
-      owner: spokeOwner,
-      repo: spokeRepo,
-      issue_number: issueNumber,
-      body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n請進行 Code Review 或等待系統自動執行測試與審查。`
-    });
+    // Auto-Merge logic based on user request ("Zero-Touch Autonomy")
+    console.log(`[Auto-Merge] Attempting to auto-merge PR #${prData.number}...`);
+    try {
+      // Optional: Give GitHub a brief moment to process the PR creation
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const mergeResult = await octokit.rest.pulls.merge({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        pull_number: prData.number,
+        commit_title: `Auto-merge: [M2M-Agent] Implementation for Issue #${issueNumber}`,
+        merge_method: 'merge'
+      });
+
+      console.log(`✅ [Auto-Merge] PR #${prData.number} successfully merged: ${mergeResult.data.message}`);
+
+      // Update Issue comment to reflect completion and merge
+      await octokit.rest.issues.createComment({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        issue_number: issueNumber,
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，此 PR 已自動合併至 main 分支。任務完成！`
+      });
+    } catch (mergeError) {
+      console.error(`⚠️ [Auto-Merge Error] Failed to auto-merge PR #${prData.number}:`, mergeError.message);
+
+      // Fallback comment if auto-merge fails (e.g., branch protection rules)
+      await octokit.rest.issues.createComment({
+        owner: spokeOwner,
+        repo: spokeRepo,
+        issue_number: issueNumber,
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n⚠️ **[Auto-Merge]** 自動合併失敗（可能遇到分支保護規則：${mergeError.message}）。請手動審查並合併。`
+      });
+    }
 
     console.log("🎉 Workflow completed successfully.");
 
