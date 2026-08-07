@@ -32,7 +32,7 @@ jobs:
     if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
     steps:
       - name: Acknowledge Command
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
@@ -70,7 +70,7 @@ jobs:
     if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
     steps:
       - name: Trigger Hub Engine via Dispatch
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
@@ -107,7 +107,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -134,7 +134,7 @@ jobs:
 
       - name: Phase 1.3 - Verify Auth Spoofing (For Solo-Maintainer)
         if: steps.risk_check.outputs.is_high_risk == 'true'
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
@@ -178,7 +178,7 @@ jobs:
 
       - name: Trigger Auto-Healing (If Failed)
         if: failure()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
