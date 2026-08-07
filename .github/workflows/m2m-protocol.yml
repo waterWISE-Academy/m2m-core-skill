@@ -29,7 +29,7 @@ jobs:
   m2m-issue-listener:
     name: 🎧 Listen for /execute in Issues
     runs-on: ubuntu-latest
-    if: contains(github.event.comment.body, '/execute')
+    if: contains(github.event.comment.body, '/execute') || contains(github.event.issue.body, '/execute')
     steps:
       - name: Acknowledge Command
         uses: actions/github-script@v7
@@ -39,7 +39,7 @@ jobs:
             const issue_number = context.issue.number;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const user = context.payload.comment.user.login;
+            const user = context.payload.comment ? context.payload.comment.user.login : context.payload.issue.user.login;
             const worker_agent = "${{ inputs.worker_agent }}";
 
             console.log(`Received /execute command from ${user} on issue #${issue_number}`);
@@ -67,7 +67,7 @@ jobs:
     name: ⚙️ Trigger Hub Internal Execution Engine
     needs: m2m-issue-listener
     runs-on: ubuntu-latest
-    if: contains(github.event.comment.body, '/execute')
+    if: contains(github.event.comment.body, '/execute') || contains(github.event.issue.body, '/execute')
     steps:
       - name: Trigger Hub Engine via Dispatch
         uses: actions/github-script@v7
