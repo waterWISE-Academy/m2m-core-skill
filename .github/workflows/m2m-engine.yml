@@ -18,7 +18,7 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
-        run: npm install @actions/core@1.11.1 @actions/github@6.0.1 node-fetch@2
+        run: npm install @actions/core @actions/github node-fetch@2
 
       - name: Execute Worker Script
         env:

@@ -3,6 +3,78 @@ const fetch = require('node-fetch');
 const core = require('@actions/core');
 const github = require('@actions/github');
 
+async function callLLMWithFallback(systemPrompt, userPrompt) {
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt }
+  ];
+
+  const providers = [
+    {
+      name: 'Tier 1 (Core Coding) - DeepSeek',
+      url: 'https://api.deepseek.com/chat/completions',
+      key: process.env.DEEPSEEK_API_KEY,
+      model: 'deepseek-chat'
+    },
+    {
+      name: 'Tier 1 (Micro Tasks) - Groq',
+      url: 'https://api.groq.com/openai/v1/chat/completions',
+      key: process.env.GROQ_API_KEY,
+      model: 'llama3-70b-8192'
+    },
+    {
+      name: 'Tier 2 (Complex) - Gemini 1.5 Pro',
+      url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+      key: process.env.GEMINI_API_KEY,
+      model: 'gemini-1.5-pro'
+    },
+    {
+      name: 'Tier 3 (Fallback) - GitHub Models',
+      url: 'https://models.inference.ai.azure.com/chat/completions',
+      key: process.env.GH_MODELS_API_KEY,
+      model: 'gpt-4o'
+    }
+  ];
+
+  for (const provider of providers) {
+    if (!provider.key) {
+      console.log(`[LLM Router] Skipping ${provider.name} due to missing API key.`);
+      continue;
+    }
+
+    console.log(`[LLM Router] Attempting to use ${provider.name} (Model: ${provider.model})...`);
+    try {
+      const response = await fetch(provider.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.key}`
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages: messages,
+          max_tokens: 1000,
+          temperature: 0.1
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.choices && data.choices.length > 0) {
+          console.log(`✅ [LLM Router] Successfully generated code using ${provider.name}.`);
+          return data.choices[0].message.content.trim();
+        }
+      } else {
+        console.error(`⚠️ [LLM Router] ${provider.name} API Error: ${response.status} - ${await response.text()}`);
+      }
+    } catch (error) {
+      console.error(`⚠️ [LLM Router] Exception calling ${provider.name}:`, error.message);
+    }
+  }
+
+  throw new Error("All configured LLM providers failed or no keys were provided.");
+}
+
 async function runRealAgent() {
   console.log("🚀 M2M Hub Internal Execution Engine Initiated.");
 
@@ -11,10 +83,6 @@ async function runRealAgent() {
   const issueNumber = process.env.ISSUE_NUMBER;
   const workerAgent = process.env.WORKER_AGENT || 'antigravity';
   const orgToken = process.env.ORG_GITHUB_TOKEN;
-
-  // API Keys
-  const ghModelsKey = process.env.GH_MODELS_API_KEY;
-  const openAIKey = process.env.OPENAI_API_KEY;
 
   if (!spokeOwner || !spokeRepo || !issueNumber || !orgToken) {
     core.setFailed("Missing required Spoke context or ORG_GITHUB_TOKEN.");
@@ -35,48 +103,16 @@ async function runRealAgent() {
 
     console.log(`[Issue Title] ${issue.title}`);
 
-    // 2. Prepare LLM Call (Simple fallback to GH Models API or OpenAI if provided)
-    // We will use standard OpenAI client structure with fetch since Node 18 supports standard web APIs or node-fetch
-
-    let apiKey = openAIKey || ghModelsKey;
-    let endpoint = openAIKey ? 'https://api.openai.com/v1/chat/completions' : 'https://models.inference.ai.azure.com/chat/completions';
-    let model = openAIKey ? 'gpt-4o' : 'gpt-4o'; // GitHub Models supports gpt-4o
-
-    if (!apiKey) {
-       console.log("⚠️ No LLM API Key available. Executing Mock PR fallback.");
-    } else {
-       console.log(`[LLM] Using endpoint: ${endpoint} with model: ${model}`);
-    }
+    // 2. Execute 3-Tier Dynamic Routing LLM Call
+    const systemPrompt = "You are an autonomous AI agent in a GitHub Actions CI environment. Your task is to output purely functional code based on the user's issue title. Do not wrap in markdown blocks, output raw code only.";
+    const userPrompt = `Please write a simple javascript program that resolves this issue title: ${issue.title}. If the title is vague, just output a generic hello world function.`;
 
     let llmCodeResult = `// Auto-generated fallback code for issue #${issueNumber}\nconsole.log("Hello from M2M Agent!");\n`;
 
-    if (apiKey) {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    { role: "system", content: "You are an autonomous AI agent in a GitHub Actions CI environment. Your task is to output purely functional code based on the user's issue title. Do not wrap in markdown blocks, output raw code only." },
-                    { role: "user", content: `Please write a simple javascript program that resolves this issue title: ${issue.title}. If the title is vague, just output a generic hello world function.` }
-                ],
-                max_tokens: 1000,
-                temperature: 0.1
-            })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data.choices && data.choices.length > 0) {
-               llmCodeResult = data.choices[0].message.content.trim();
-               console.log("✅ LLM Code Generation Successful.");
-            }
-        } else {
-            console.error("❌ LLM API Error", response.status, await response.text());
-        }
+    try {
+      llmCodeResult = await callLLMWithFallback(systemPrompt, userPrompt);
+    } catch (err) {
+      console.log(`❌ [LLM Error] ${err.message}. Using default Mock code.`);
     }
 
     // 3. Create a commit and PR on Spoke Repo
