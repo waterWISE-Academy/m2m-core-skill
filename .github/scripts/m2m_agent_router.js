@@ -258,22 +258,37 @@ Expected output format:
       // Optional: Give GitHub a brief moment to process the PR creation
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      const mergeResult = await octokit.rest.pulls.merge({
-        owner: spokeOwner,
-        repo: spokeRepo,
-        pull_number: prData.number,
-        commit_title: `Auto-merge: [M2M-Agent] Implementation for Issue #${issueNumber}`,
-        merge_method: 'merge'
-      });
+      const query = `
+        mutation($pullRequestId: ID!, $commitHeadline: String!) {
+          enablePullRequestAutoMerge(input: {
+            pullRequestId: $pullRequestId,
+            commitHeadline: $commitHeadline,
+            mergeMethod: MERGE
+          }) {
+            pullRequest {
+              autoMergeRequest {
+                enabledAt
+              }
+            }
+          }
+        }
+      `;
 
-      console.log(`✅ [Auto-Merge] PR #${prData.number} successfully merged: ${mergeResult.data.message}`);
+      const variables = {
+        pullRequestId: prData.node_id,
+        commitHeadline: `Auto-merge: [M2M-Agent] Implementation for Issue #${issueNumber}`
+      };
+
+      await octokit.graphql(query, variables);
+
+      console.log(`✅ [Auto-Merge] PR #${prData.number} successfully queued for auto-merge.`);
 
       // Update Issue comment to reflect completion and merge
       await octokit.rest.issues.createComment({
         owner: spokeOwner,
         repo: spokeRepo,
         issue_number: issueNumber,
-        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，此 PR 已自動合併至 main 分支。任務完成！`
+        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，已啟用 PR 自動合併，待 CI 檢查通過後將自動合併至 main 分支。任務完成！`
       });
     } catch (mergeError) {
       console.error(`⚠️ [Auto-Merge Error] Failed to auto-merge PR #${prData.number}:`, mergeError.message);
