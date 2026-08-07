@@ -32,7 +32,7 @@ jobs:
     if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
     steps:
       - name: Acknowledge Command
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
@@ -63,51 +63,43 @@ jobs:
               body: `🤖 **[Jules (System 2 總指揮中心)]** 收到老闆指令 (由 @${user} 觸發)。\n\n已鎖定計畫書，正在動態載入全域藍圖 (docs/learnings/*) 並建立技術架構...\n\n${worker_msg}`
             });
 
-  m2m-worker-execution:
-    name: ⚙️ Worker Agent Execution (System 1/2)
+  m2m-trigger-hub-engine:
+    name: ⚙️ Trigger Hub Internal Execution Engine
     needs: m2m-issue-listener
     runs-on: ubuntu-latest
     if: github.event_name == 'issue_comment' && github.event.action == 'created' && contains(github.event.comment.body, '/execute')
     steps:
-      - name: Checkout Hub Code (m2m-core-skill)
-        uses: actions/checkout@v3
-        with:
-          repository: waterWISE-Academy/m2m-core-skill
-          path: hub-repo
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Trigger Worker Handoff (3-Tier Dynamic Routing)
-        env:
-          WORKER_AGENT: ${{ inputs.worker_agent }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GH_MODELS_API_KEY: ${{ secrets.GH_MODELS_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.ORG_GITHUB_TOKEN }}
-        run: |
-          echo "🚀 Starting real M2M Worker Router..."
-          node hub-repo/.github/scripts/m2m_agent_router.js
-
-      - name: Notify Issue
-        uses: actions/github-script@v6
+      - name: Trigger Hub Engine via Dispatch
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
-            const issue_number = context.issue.number;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const worker_agent = "${{ inputs.worker_agent }}";
+            const hubOwner = 'waterWISE-Academy';
+            const hubRepo = 'm2m-core-skill';
+            const spokeOwner = context.repo.owner;
+            const spokeRepo = context.repo.repo;
+            const issueNumber = context.issue.number;
+            const workerAgent = "${{ inputs.worker_agent }}";
 
-            await github.rest.issues.createComment({
-              owner: owner,
-              repo: repo,
-              issue_number: issue_number,
-              body: `🚀 **[System 1 / Worker Agent ${worker_agent}]** 任務已成功路由至 3-Tier 動態核心。背景作業執行完畢。`
-            });
+            console.log(`Triggering Hub Execution Engine for Spoke: ${spokeOwner}/${spokeRepo}, Issue: #${issueNumber}`);
+
+            try {
+              await github.rest.repos.createDispatchEvent({
+                owner: hubOwner,
+                repo: hubRepo,
+                event_type: 'm2m_worker_trigger',
+                client_payload: {
+                  spoke_owner: spokeOwner,
+                  spoke_repo: spokeRepo,
+                  issue_number: issueNumber,
+                  worker_agent: workerAgent
+                }
+              });
+              console.log("✅ Dispatch sent successfully.");
+            } catch (error) {
+              console.error("❌ Failed to send dispatch.", error);
+              core.setFailed(`Dispatch failed: ${error.message}`);
+            }
 
   m2m-ci-gatekeeper:
     name: 🛡️ CI Validation & Security Gate (Phase 1)
@@ -115,7 +107,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -142,7 +134,7 @@ jobs:
 
       - name: Phase 1.3 - Verify Auth Spoofing (For Solo-Maintainer)
         if: steps.risk_check.outputs.is_high_risk == 'true'
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
@@ -186,7 +178,7 @@ jobs:
 
       - name: Trigger Auto-Healing (If Failed)
         if: failure()
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.ORG_GITHUB_TOKEN }}
           script: |
