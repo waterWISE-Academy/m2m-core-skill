@@ -21,6 +21,10 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 3.  **身分配置 (Agent Identity)**：為 Jules 與 Antigravity 建立專屬的 GitHub 機器人帳號（或封裝為 GitHub App），賦予 Repository 的讀寫權限。
 4.  **環境變數設定**：在儲存庫的 Secrets 中設定 `ORG_GITHUB_TOKEN` 等必要憑證。
     *(⚠️ **注意：嚴禁使用 GitHub Actions 預設的 `GITHUB_TOKEN`**。預設 Token 發送的留言不會觸發後續的 Workflow，這會導致 M2M 引擎發生靜默斷鏈。您必須為主動執行的 Agent 申請一組專屬的 Personal Access Token (PAT) 或 GitHub App Token 來填入此欄位。)*
+5.  **【常見踩坑】配置 AI 大腦金鑰 (LLM API Keys) 至組織層級**：
+    *要讓 M2M 系統為您生成程式碼，您必須提供它 AI 模型金鑰（例如 `DEEPSEEK_API_KEY`, `GH_MODELS_API_KEY`, `GROQ_API_KEY` 等）。*
+    *   **極度重要：** 您必須將這些金鑰設定在 **Organization secrets (組織層級的機密)**，並且授予您的 Spoke 子專案讀取權限。
+    *   **錯誤示範：** 許多使用者會直覺地將金鑰設在 Hub 的 `Repository secrets` 內。但由於 M2M 是跨專案呼叫架構，子專案 (`Spoke`) 預設**無法讀取**中央 (`Hub`) 的 Repository secrets。這會導致 AI 引擎讀不到大腦而執行失敗，產生 Fallback 錯誤檔案。如果您同時設定在兩邊 (Repository 與 Organization) 則是安全且被允許的。
 
 ### Phase 2: 建立 Spoke 範本專案 (Template Packaging)
 為了讓未來的專案能「一秒開箱即用」，建議您建立一個名為 `m2m-spoke-template` 的 Repository，並在設定中勾選 **`Template repository`**。
@@ -35,12 +39,6 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 ⚠️ **【極度重要：手動上鎖】** GitHub Template **不會**複製分支保護規則。新專案建立後，您**必須**手動前往 `Settings` -> `Branches`，為 `main` 分支加上以下保護：
 *   ✅ **Require status checks to pass before merging** (強制 CI 通過才能合併)
 *   ✅ **Do not allow bypassing the above settings** (禁止強推)
-
-⚠️ **【極度重要：開啟自動合併 (Auto-Merge)】**
-為了達成 M2M 的「零接觸自動化 (Zero-Touch Autonomy)」願景，系統會在背景透過 GraphQL API 觸發 PR 自動合併。若未開啟此選項，Agent 會回報 `Auto merge is not allowed for this repository` 錯誤。
-*   **您的動作**：前往新專案的 `Settings` -> `General`。
-*   捲動至 **Pull Requests** 區塊。
-*   ✅ 勾選 **Allow auto-merge**。
 
 完成上鎖後，您的新專案就正式具備了 M2M 全自動代工廠的絕對防護力！
 
