@@ -122,11 +122,15 @@ Expected output format:
     const userPrompt = `Issue Title: ${issue.title}\n\nIssue Body (Development Plan):\n${issue.body || 'No detailed plan provided. Please infer basic project structure from the title.'}\n\nPlease generate the full project files as a JSON array.`;
 
     let llmCodeResult = "[]";
+    let isFallback = false;
+    let fallbackErrorMessage = "";
 
     try {
       llmCodeResult = await callLLMWithFallback(systemPrompt, userPrompt);
     } catch (err) {
       console.log(`❌ [LLM Error] ${err.message}. Using default Mock code.`);
+      isFallback = true;
+      fallbackErrorMessage = err.message;
       llmCodeResult = JSON.stringify([{
         path: `src/agent_fallback_${issueNumber}.js`,
         content: `// Auto-generated fallback code for issue #${issueNumber}\nconsole.log("LLM Error: ${err.message}");\n`
@@ -284,21 +288,35 @@ Expected output format:
       console.log(`✅ [Auto-Merge] PR #${prData.number} successfully queued for auto-merge.`);
 
       // Update Issue comment to reflect completion and merge
+      let commentBody = "";
+      if (isFallback) {
+        commentBody = `⚠️ **[System 1 / Worker Agent ${workerAgent} - 執行失敗 (LLM Error)]** \n\n已建立 Fallback Pull Request (僅含錯誤紀錄): ${prData.html_url}\n\n🚨 **錯誤原因：** \`${fallbackErrorMessage}\`\n\n**產品架構並未生成。** 這通常是因為您的 M2M Hub 中央控制庫 (m2m-core-skill) 尚未設定，或設定了無效的 LLM API Keys。請前往 GitHub Settings -> Secrets and variables -> Actions，並確保您已設定如 \`DEEPSEEK_API_KEY\` 或 \`GH_MODELS_API_KEY\` 等環境變數以啟動 AI 模型。\n\n🤖 **[Auto-Merge]** 根據系統設定，此除錯用 PR 已啟用自動合併，將在 CI 通過後關閉。`;
+      } else {
+        commentBody = `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，已啟用 PR 自動合併，待 CI 檢查通過後將自動合併至 main 分支。任務完成！`;
+      }
+
       await octokit.rest.issues.createComment({
         owner: spokeOwner,
         repo: spokeRepo,
         issue_number: issueNumber,
-        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n🤖 **[Auto-Merge]** 根據系統設定，已啟用 PR 自動合併，待 CI 檢查通過後將自動合併至 main 分支。任務完成！`
+        body: commentBody
       });
     } catch (mergeError) {
       console.error(`⚠️ [Auto-Merge Error] Failed to auto-merge PR #${prData.number}:`, mergeError.message);
 
       // Fallback comment if auto-merge fails (e.g., branch protection rules)
+      let fallbackMergeBody = "";
+      if (isFallback) {
+        fallbackMergeBody = `⚠️ **[System 1 / Worker Agent ${workerAgent} - 執行失敗 (LLM Error)]** \n\n已建立 Fallback Pull Request (僅含錯誤紀錄): ${prData.html_url}\n\n🚨 **錯誤原因：** \`${fallbackErrorMessage}\`\n\n**產品架構並未生成。** 請前往 Hub 設定有效的 LLM API Keys。\n\n⚠️ **[Auto-Merge]** 自動合併失敗（可能遇到分支保護規則：${mergeError.message}）。`;
+      } else {
+        fallbackMergeBody = `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n⚠️ **[Auto-Merge]** 自動合併失敗（可能遇到分支保護規則：${mergeError.message}）。請手動審查並合併。`;
+      }
+
       await octokit.rest.issues.createComment({
         owner: spokeOwner,
         repo: spokeRepo,
         issue_number: issueNumber,
-        body: `✅ **[System 1 / Worker Agent ${workerAgent}]** 程式碼實作完成！\n已成功建立 Pull Request: ${prData.html_url}\n\n⚠️ **[Auto-Merge]** 自動合併失敗（可能遇到分支保護規則：${mergeError.message}）。請手動審查並合併。`
+        body: fallbackMergeBody
       });
     }
 
