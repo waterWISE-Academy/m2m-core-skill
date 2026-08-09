@@ -29,7 +29,7 @@ M2M 採用 Hub-and-Spoke (中央作業系統與終端 APP) 架構。
 ### Phase 2: 建立 Spoke 範本專案 (Template Packaging)
 為了讓未來的專案能「一秒開箱即用」，建議您建立一個名為 `m2m-spoke-template` 的 Repository，並在設定中勾選 **`Template repository`**。
 請在此範本專案中放入以下基礎設施：
-1.  **呼叫器 (`.github/workflows/m2m-caller.yml`)**：寫入指向中央引擎的指令。**強烈建議：** 呼叫路徑請綁定特定版號（如 `@v2.3`）而非 `@main`，避免總部改版導致產線中斷。
+1.  **呼叫器 (`.github/workflows/m2m-caller.yml`)**：寫入指向中央引擎的指令。呼叫路徑請綁定至 `@main`（如 `uses: waterWISE-Academy/m2m-core-skill/.github/workflows/m2m-protocol.yml@main`），以確保子專案能隨時同步取得中央引擎的最新修復與功能。
 2.  **計畫書範本 (`templates/DEVELOPMENT_PLAN_TEMPLATE.md`)**：放入商業驅動開發計畫書。
 3.  **基礎目錄 (`db/migrations/` 與 `docs/learnings/`)**：預留給資料庫變更與藍圖同步使用。
 4.  **基礎衛生檔案 (`.gitignore`)**：請務必加入標準的 `.gitignore` 檔案，防止 AI 在本地開發時意外上傳 `.env` 或系統暫存檔，造成資安破口。
