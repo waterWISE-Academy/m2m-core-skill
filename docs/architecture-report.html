@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M2M Protocol Architecture Deepening Report</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8 border-b pb-4">Architecture Review: M2M Protocol Depth</h1>
+
+    <!-- Issue 1 -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">1. Event Listener Seam Leak (Shallow Interface)</h2>
+        <span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-red-200">Strong</span>
+      </div>
+      <div class="mb-4 text-sm text-gray-500"><strong>Files:</strong> <code>.github/workflows/m2m-protocol.yml</code></div>
+
+      <p class="mb-4 text-gray-700"><strong>Problem:</strong> The reusable workflow strictly filtered events using <code>github.event_name == 'issue_comment'</code>. When invoked as an <strong>adapter</strong> (via <code>workflow_call</code>) from a Spoke repository, the event context changes, causing the engine to silently skip execution. This creates a brittle, shallow boundary where the Hub cannot reliably listen to its Spokes.</p>
+
+      <p class="mb-4 text-gray-700"><strong>Solution:</strong> Deepen the interface by increasing its <strong>leverage</strong>. We broadened the filter to accept both <code>issue_comment</code> and <code>issues</code>, and inspected the payload dynamically to extract the user from either <code>context.payload.comment</code> or <code>context.payload.issue</code>.</p>
+
+      <p class="mb-6 text-gray-700"><strong>Benefits:</strong> Higher <strong>locality</strong>. The Hub engine can now confidently accept triggers without forcing the Spoke to format its events in a rigid, single-use structure.</p>
+    </div>
+
+    <!-- Issue 2 -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold">2. LLM Output Parser Fragility (Lack of Locality)</h2>
+        <span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded border border-red-200">Strong</span>
+      </div>
+      <div class="mb-4 text-sm text-gray-500"><strong>Files:</strong> <code>.github/scripts/m2m_agent_router.js</code></div>
+
+      <p class="mb-4 text-gray-700"><strong>Problem:</strong> The JSON parsing logic relied on string matching (<code>startsWith('```json')</code>) to strip markdown. This formed a <strong>shallow module</strong> that crashed easily if the LLM hallucinated conversational text around the block. This caused the system to frequently fall back to a mock file generation.</p>
+
+      <p class="mb-4 text-gray-700"><strong>Solution:</strong> Replaced the manual string slicing with a robust Regular Expression <strong>seam</strong> (<code>/```(?:json)?\s*([\s\S]*?)\s*```/</code>) to extract the code block payload, with a secondary fallback array match. This isolates the parsing concern.</p>
+
+      <p class="mb-6 text-gray-700"><strong>Benefits:</strong> Improved <strong>locality</strong> and resilience. The router can now safely ingest LLM outputs regardless of formatting wrappers.</p>
+    </div>
+  </div>
+</body>
+</html>

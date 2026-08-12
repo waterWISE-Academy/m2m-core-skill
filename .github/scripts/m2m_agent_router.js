@@ -149,15 +149,16 @@ Expected output format:
     try {
       // Robust stripping in case LLM ignored instructions and wrapped in markdown
       let cleanJsonString = llmCodeResult.trim();
-      if (cleanJsonString.startsWith('```json')) {
-        cleanJsonString = cleanJsonString.substring(7);
-      } else if (cleanJsonString.startsWith('```')) {
-        cleanJsonString = cleanJsonString.substring(3);
+      const match = cleanJsonString.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match) {
+        cleanJsonString = match[1];
+      } else {
+        // Fallback: try to find an array if not in markdown block
+        const arrayMatch = cleanJsonString.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+           cleanJsonString = arrayMatch[0];
+        }
       }
-      if (cleanJsonString.endsWith('```')) {
-        cleanJsonString = cleanJsonString.substring(0, cleanJsonString.length - 3);
-      }
-      cleanJsonString = cleanJsonString.trim();
 
       filesToCommit = JSON.parse(cleanJsonString);
       if (!Array.isArray(filesToCommit)) {
