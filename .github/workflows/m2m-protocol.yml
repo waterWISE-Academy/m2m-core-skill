@@ -167,6 +167,8 @@ jobs:
         id: dry_run
         run: |
           echo "Executing Git Dry-Run to prevent merge conflicts..."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout -b dry-run-branch HEAD
           if ! git merge origin/main --no-commit; then
@@ -196,6 +198,8 @@ jobs:
               issue_number: issue_number,
               body: `⚠️ **[CI 總指揮中心攔截]** 測試或安全掃描失敗。\n已標記 \`agent-fix-required\`。請 ${mention} 讀取 Log 並於背景自動修正。`
             });
+
+            await new Promise(r => setTimeout(r, 2000));
 
             await github.rest.issues.addLabels({
               owner: owner,
